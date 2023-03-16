@@ -1,54 +1,58 @@
-import requests
 import json
+import time
+import requests
 
 # Set up API endpoint and bot token
-api_endpoint = "https://api.telegram.org/bot"
-bot_token = "6230593358:AAFqvivxeQtuW2q2zQLQsJNWC5_xuvqEsHA"
-send_message_url = api_endpoint + bot_token + "/sendMessage"
-inline_keyboard = api_endpoint + bot_token + "/InlineKeyboardMarkup"
+API_LINK = "https://api.telegram.org/bot6230593358:AAFqvivxeQtuW2q2zQLQsJNWC5_xuvqEsHA"
+GET_UPDATES_URL = API_LINK + "/getUpdates"
+SEND_MESSAGE_URL = API_LINK + "/sendMessage"
+INLINE_KEYBOARD = API_LINK + "/InlineKeyboardMarkup"
+SEND_PHOTO_URL = API_LINK + "/sendPhoto"
+PROCESSED_UPDATES = None
+processed_offset = 0
 
-# Set up message parameters
-chat_id = "781874113" # Replace with the ID of the user or group you want to send the message to
-message_text = "Select Your MBTI type!" # Replace with the message you want to send
+# Define a function to handle the /start command
+def start(user_id):
+    data = {
+        "chat_id": user_id,
+        "photo" : "https://64.media.tumblr.com/16f5503bc2c6017c4738dc434b037500/tumblr_ol8v1amxc91ugs09ro1_1280.jpg",
+        "caption": "👋 Welcome to our MBTI-based chat bot! \n\n" \
+              "We're here to help you connect with like-minded individuals based on your unique personality type. \n\n" \
+              "Simply select your MBTI type and we'll match you with someone who shares your values and interests. \n\n" \
+              "Whether you're seeking new friends, meaningful conversations, or just a bit of fun, " \
+              "our chat bot has got you covered. \n\n" \
+              "Start exploring your personality and connecting with others today! 🤗",
+    }
+    start_response = requests.post(SEND_PHOTO_URL, json=data, timeout=1.5)
+    if start_response.ok:
+        print('Start Text Message sent successfully.')
+    else:
+        print('Failed to send Start Text message.')
 
+data = {"commands" : [{"command" : "/join" , "description" : "Search the Partner"}, {"command" : "/settings" , "description" : "Change Your Priority"}]}
 
-# Create the keyboard
-keyboard = {
-    "inline_keyboard": [
-        [{"text": "INTJ", "callback_data": "1"},
-         {"text": "INFJ", "callback_data": "2"},
-         {"text": "ISTJ", "callback_data": "3"},
-         {"text": "ISTP", "callback_data": "4"}],
-        [{"text": "INTP", "callback_data": "5"},
-         {"text": "INFP", "callback_data": "6"},
-         {"text": "ISFJ", "callback_data": "7"},
-         {"text": "ISFP", "callback_data": "8"}],
-        [{"text": "ENTJ", "callback_data": "9"},
-         {"text": "ENFJ", "callback_data": "10"},
-         {"text": "ESTJ", "callback_data": "11"},
-         {"text": "ESTP", "callback_data": "12"}],
-        [{"text": "ENTP", "callback_data": "13"},
-         {"text": "ENFP", "callback_data": "14"},
-         {"text": "ESFJ", "callback_data": "15"},
-         {"text": "ESFP", "callback_data": "16"}]
-    ]
-}
+response = requests.post(API_LINK + "/setMyCommands", json=data)
+if response.ok:
+    print('Commands Menu set succesfully.')
+else:
+    print('Failed to set Commands Menu.')
 
-# Convert the keyboard to JSON format
-keyboard_json = json.dumps(keyboard)
-
-
-# Construct JSON data for message
-data = {
-    "chat_id": chat_id,
-    "text": message_text,
-    'reply_markup': keyboard_json
-}
-
-
-# Send the message
-response = requests.post(send_message_url, data=data)
-
-# Print response status code and content
-#print("Response status code:", response.status_code)
-#print("Response content:", response.content)
+while True:
+    response = requests.get(GET_UPDATES_URL, params={'offset': processed_offset, 'timeout': 30})
+    if response.ok:
+        updates = json.loads(response.content)['result']
+        if updates:
+            for update in updates:
+                chat_id = update['message']['chat']['id']
+                if 'text' in update['message'] 
+                    if update['message']['text'] == '/start':
+                        start(chat_id)
+                    if update['message']['text'] == '/join':
+                        pass
+                    if update['message']['text'] == '/settings':
+                        pass
+                processed_offset = max(processed_offset, update['update_id'] + 1)
+        time.sleep(2)
+    else:
+        print('Failed to get updates.')
+        time.sleep(5)
