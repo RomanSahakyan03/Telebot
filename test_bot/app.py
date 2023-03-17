@@ -29,13 +29,6 @@ def start(user_id):
     else:
         print('Failed to send Start Text message.')
 
-data = {"commands" : [{"command" : "/join" , "description" : "Search the Partner"}, {"command" : "/settings" , "description" : "Change Your Priority"}]}
-
-response = requests.post(API_LINK + "/setMyCommands", json=data)
-if response.ok:
-    print('Commands Menu set succesfully.')
-else:
-    print('Failed to set Commands Menu.')
 
 while True:
     response = requests.get(GET_UPDATES_URL, params={'offset': processed_offset, 'timeout': 30})
@@ -44,13 +37,18 @@ while True:
         if updates:
             for update in updates:
                 chat_id = update['message']['chat']['id']
-                if 'text' in update['message'] 
+                if 'text' in update['message']:
                     if update['message']['text'] == '/start':
                         start(chat_id)
                     if update['message']['text'] == '/join':
                         pass
                     if update['message']['text'] == '/settings':
                         pass
+                    if update['message']['text'] == '/shareprofile':
+                        pass
+                    if update['message']['text'] == '/about':
+                        start(chat_id)
+                        
                 processed_offset = max(processed_offset, update['update_id'] + 1)
         time.sleep(2)
     else:
