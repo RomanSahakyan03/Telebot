@@ -4,21 +4,28 @@ import requests
 
 # Set up API endpoint and bot token
 API_LINK = "https://api.telegram.org/bot6230593358:AAFqvivxeQtuW2q2zQLQsJNWC5_xuvqEsHA"
-GET_UPDATES_URL = API_LINK + "/getUpdates"
-SEND_MESSAGE_URL = API_LINK + "/sendMessage"
-INLINE_KEYBOARD = API_LINK + "/InlineKeyboardMarkup"
-SEND_PHOTO_URL = API_LINK + "/sendPhoto"
+GET_UPDATES_URL = f"{API_LINK}/getUpdates"
+SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
+INLINE_KEYBOARD = f"{API_LINK}/InlineKeyboardMarkup"
+SEND_PHOTO_URL = f"{API_LINK}/sendPhoto"
 PROCESSED_UPDATES = None
 processed_offset = 0
+
+
+# Define constants for string literals
+START_MESSAGE = "👋 Start The Conversation"
+SETTINGS_MESSAGE = "🛠️ Manage your Settings"
+ABOUT_MESSAGE = "📖About the bot"
+PAYMENT_MESSGAE = "💵Payment"
 
 # Define a function to handle the /start command
 def start(chat_id):
     keyboard = {
         "keyboard": 
-            [[{"text": "👋 Start The Conversation"},
-             {"text": "🛠️ Manage your Settings"}],
-            [{"text": "📖About the bot"},
-             {"text": "💵Payment"}]],
+            [[{"text": START_MESSAGE},
+             {"text": SETTINGS_MESSAGE}],
+            [{"text": ABOUT_MESSAGE},
+             {"text": PAYMENT_MESSGAE}]],
 
         "resize_keyboard": True
     }
@@ -58,9 +65,10 @@ def settings(chat_id):
     # Create the keyboard
     keyboard = {
     "inline_keyboard": [
-        [{"text": "Your MBTI Type", "callback_data": "1"}],
-        [{"text": "Prefered MBTI Types", "callback_data": "5"},],
-        [{"text": "Gender", "callback_data": "9"}]
+        [{"text": "Your MBTI Type", "callback_data": "my_type"},
+        {"text": "Prefered MBTI Types", "callback_data": "prefered_types"},],
+        [{"text": "Gender", "callback_data": "genders"},
+        {"text": "Region", "callback_data": "region"}]
         ]}
     data = {
         "chat_id" : chat_id,
@@ -74,9 +82,30 @@ def settings(chat_id):
         print('Failed to open Settings.')
 
 
+def callback_handler(call_back_data):
+    print(call_back_data)
+    if call_back_data == "my_type":
+        pass
+    if call_back_data == "prefered_types":
+        pass
+    if call_back_data == "genders":
+        pass
+    if call_back_data == "region":
+        pass
+
+
+COMMANDS = {
+    '/start': start,
+    '/join': None,
+    '/stop': stop,
+    '/settings': settings,
+    '/shareprofile': None,
+    '/about': start
+}
+
 
 while True:
-    response = requests.get(GET_UPDATES_URL, params={'offset': processed_offset, 'timeout': 15}, timeout=15)
+    response = requests.get(GET_UPDATES_URL, params={'offset': processed_offset}, timeout=15)
     if response.ok:
         updates = response.json()['result']
         if updates:
@@ -84,7 +113,12 @@ while True:
                 if 'message' in update:
                     chat_id = update['message']['chat']['id']
                     if 'text' in update['message']:
-                        if update['message']['text'] == '/start':
+                        text = update['message']['text']
+                        handler = COMMANDS.get(text)
+                        if handler is not None:
+                            handler(chat_id)
+                            
+                        '''if update['message']['text'] == '/start':
                             start(chat_id)
                         if update['message']['text'] == '/join' or update['message']['text'] == "👋 Start The Conversation":
                             pass
@@ -95,8 +129,15 @@ while True:
                         if update['message']['text'] == '/shareprofile':
                             pass
                         if update['message']['text'] == '/about' or update['message']['text'] == "📖About the bot":
-                            start(chat_id)
-                    processed_offset = max(processed_offset, update['update_id'] + 1)
+                            start(chat_id)'''
+                        processed_offset = max(processed_offset, update['update_id'] + 1)
+                    
+                if 'callback_query' in update:
+                    callback_data = update["callback_query"]["data"]
+                    if 'data' in update['callback_query']:
+                        callback_handler(callback_data)
+                        processed_offset = max(processed_offset, update['update_id'] + 1)
+        
         time.sleep(0.75)
     else:
         print('Failed to get updates.')
