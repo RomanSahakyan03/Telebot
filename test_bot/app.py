@@ -8,8 +8,7 @@ GET_UPDATES_URL = f"{API_LINK}/getUpdates"
 SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
 INLINE_KEYBOARD = f"{API_LINK}/InlineKeyboardMarkup"
 SEND_PHOTO_URL = f"{API_LINK}/sendPhoto"
-PROCESSED_UPDATES = None
-processed_offset = 0
+PROCCESSED_OFFSET = 0
 
 
 # Define constants for string literals
@@ -17,9 +16,21 @@ START_MESSAGE = "👋 Start The Conversation"
 SETTINGS_MESSAGE = "🛠️ Manage your Settings"
 ABOUT_MESSAGE = "📖About the bot"
 PAYMENT_MESSGAE = "💵Payment"
+ABOUT_TEXT = "We're here to help you connect with like-minded individuals based on your unique personality type. \n\n" \
+              "Our chat bot uses the Myers-Briggs Type Indicator (MBTI) to determine your personality type and match you with compatible individuals. \n\n" \
+              "Whether you're seeking new friends, meaningful conversations, or just a bit of fun, " \
+              "our chat bot has got you covered. \n\n" \
+              "Here are some useful commands \n" \
+              "/join - join to a new chat \n" \
+              "/stop - stop the current chat \n" \
+              "/next - imidiately find new partner \n" \
+              "/settings - adjust parameters \n" \
+              "/about - this page \n"
+
 
 # Define a function to handle the /start command
-def start(chat_id):
+def about(update):
+    chat_id = update['message']['chat']['id']
     keyboard = {
         "keyboard": 
             [[{"text": START_MESSAGE},
@@ -29,18 +40,12 @@ def start(chat_id):
 
         "resize_keyboard": True
     }
-
-
+# MARIA's chat id 842079224
 
     data = {
         "chat_id": chat_id,
         "photo" : "https://64.media.tumblr.com/16f5503bc2c6017c4738dc434b037500/tumblr_ol8v1amxc91ugs09ro1_1280.jpg",
-        "caption": "👋 Welcome to our MBTI-based chat bot! \n\n" \
-              "We're here to help you connect with like-minded individuals based on your unique personality type. \n\n" \
-              "Simply select your MBTI type and we'll match you with someone who shares your values and interests. \n\n" \
-              "Whether you're seeking new friends, meaningful conversations, or just a bit of fun, " \
-              "our chat bot has got you covered. \n\n" \
-              "Start exploring your personality and connecting with others today! 🤗",
+        "caption": ABOUT_TEXT,
         "reply_markup": json.dumps(keyboard)
     }
     start_response = requests.post(SEND_PHOTO_URL, json=data, timeout=1.5)
@@ -50,7 +55,8 @@ def start(chat_id):
         print('Failed to Send Start Text Message.')
 
 
-def stop(chat_id):
+def stop(update):
+    chat_id = update['message']['chat']['id']
     data = {
         "chat_id": chat_id,
         "text": "Conversation ended. Type /join to begin a new conversation."
@@ -61,13 +67,14 @@ def stop(chat_id):
     else:
         print('Failed to Stop Conversation.')
 
-def settings(chat_id):
+def settings(update):
+    chat_id = update['message']['chat']['id']
     # Create the keyboard
     keyboard = {
     "inline_keyboard": [
         [{"text": "Your MBTI Type", "callback_data": "my_type"},
         {"text": "Prefered MBTI Types", "callback_data": "prefered_types"},],
-        [{"text": "Gender", "callback_data": "genders"},
+        [{"text": "💸Gender", "callback_data": "genders"},
         {"text": "Region", "callback_data": "region"}]
         ]}
     data = {
@@ -95,50 +102,37 @@ def callback_handler(call_back_data):
 
 
 COMMANDS = {
-    '/start': start,
+    '/start': None,
+    '👋 Start The Conversation' : None,
     '/join': None,
     '/stop': stop,
     '/settings': settings,
+    '🛠️ Manage your Settings' : settings,
     '/shareprofile': None,
-    '/about': start
+    '/about': about,
+    '📖About the bot' : about
 }
 
 
 while True:
-    response = requests.get(GET_UPDATES_URL, params={'offset': processed_offset}, timeout=15)
-    if response.ok:
-        updates = response.json()['result']
-        if updates:
+    try:
+        response = requests.get(GET_UPDATES_URL, params={'offset': PROCCESSED_OFFSET}, timeout=15)
+        if response.ok:
+            updates = response.json()['result']
             for update in updates:
                 if 'message' in update:
-                    chat_id = update['message']['chat']['id']
-                    if 'text' in update['message']:
-                        text = update['message']['text']
+                    text = update['message'].get('text')
+                    if text:
                         handler = COMMANDS.get(text)
-                        if handler is not None:
-                            handler(chat_id)
-                            
-                        '''if update['message']['text'] == '/start':
-                            start(chat_id)
-                        if update['message']['text'] == '/join' or update['message']['text'] == "👋 Start The Conversation":
-                            pass
-                        if update['message']['text'] == '/stop':
-                            stop(chat_id)
-                        if update['message']['text'] == '/settings' or update['message']['text'] == "🛠️ Manage your Settings":
-                            settings(chat_id)
-                        if update['message']['text'] == '/shareprofile':
-                            pass
-                        if update['message']['text'] == '/about' or update['message']['text'] == "📖About the bot":
-                            start(chat_id)'''
-                        processed_offset = max(processed_offset, update['update_id'] + 1)
-                    
-                if 'callback_query' in update:
-                    callback_data = update["callback_query"]["data"]
+                        if handler:
+                            handler(update)
+                    PROCCESSED_OFFSET = max(PROCCESSED_OFFSET, update['update_id'] + 1)
+                if 'callback_query' in update and 'data' in update['callback_query']:
+                    callback_data = update['callback_query']['data']
                     if 'data' in update['callback_query']:
                         callback_handler(callback_data)
-                        processed_offset = max(processed_offset, update['update_id'] + 1)
-        
+                    PROCCESSED_OFFSET = max(PROCCESSED_OFFSET, update['update_id'] + 1)
         time.sleep(0.75)
-    else:
-        print('Failed to get updates.')
+    except Exception as e:
+        print(f'Error occurred: {e}')
         time.sleep(5)
