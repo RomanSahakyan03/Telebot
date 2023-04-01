@@ -16,19 +16,25 @@ START_MESSAGE = "👋 Start The Conversation"
 SETTINGS_MESSAGE = "🛠️ Manage your Settings"
 ABOUT_MESSAGE = "📖About the bot"
 PAYMENT_MESSGAE = "💵Payment"
-ABOUT_TEXT = "We're here to help you connect with like-minded individuals based on your unique personality type. \n\n" \
-              "Our chat bot uses the Myers-Briggs Type Indicator (MBTI) to determine your personality type and match you with compatible individuals. \n\n" \
-              "Whether you're seeking new friends, meaningful conversations, or just a bit of fun, " \
-              "our chat bot has got you covered. \n\n" \
-              "Here are some useful commands \n" \
-              "/join - join to a new chat \n" \
-              "/stop - stop the current chat \n" \
-              "/next - imidiately find new partner \n" \
-              "/settings - adjust parameters \n" \
-              "/about - this page \n"
+ABOUT_TEXT =  "Welcome to TypeTalk! We're an anonymous chat bot that connects you with like-minded people based on your MBTI personality type. " \
+              "To start a new chat, type /join. Use /settings to customize your search parameters. \n\n" \
+              "During a conversation, you can use the /stop command to end the chat at any time. " \
+              "If you want to chat with a new person, use the /next command to be matched with a new partner based on your search preferences. \n\n" \
+              "You can adjust your search parameters anytime by using /settings. For more information about TypeTalk, type /about. \n\n" \
+              "We prioritize your privacy and ensure that all chats are anonymous and kept confidential!! "
 
+
+def join(update):
+    pass
 
 # Define a function to handle the /start command
+def start(update):
+    if(None):
+        start(update)
+    else:    
+        join(update)
+
+# Define a function to handle the /about command
 def about(update):
     chat_id = update['message']['chat']['id']
     keyboard = {
@@ -74,6 +80,8 @@ def settings(update):
     "inline_keyboard": [
         [{"text": "Your MBTI Type", "callback_data": "my_type"},
         {"text": "Prefered MBTI Types", "callback_data": "prefered_types"},],
+        [{"text": "Your Age", "callback_data": "my_age"},
+        {"text": "Prefered Age Interval", "callback_data": "prefered_ages"},],
         [{"text": "💸Gender", "callback_data": "genders"},
         {"text": "Region", "callback_data": "region"}]
         ]}
@@ -116,22 +124,21 @@ COMMANDS = {
 
 while True:
     try:
-        response = requests.get(GET_UPDATES_URL, params={'offset': PROCCESSED_OFFSET}, timeout=15)
+        response = requests.get(GET_UPDATES_URL, params={'offset': PROCCESSED_OFFSET})
         if response.ok:
             updates = response.json()['result']
             for update in updates:
-                if 'message' in update:
-                    text = update['message'].get('text')
-                    if text:
-                        handler = COMMANDS.get(text)
+                if 'message' in update and 'text' in update['message']:
+                    text = update['message']['text']
+                    if text in COMMANDS:
+                        handler = COMMANDS[text]
                         if handler:
                             handler(update)
-                    PROCCESSED_OFFSET = max(PROCCESSED_OFFSET, update['update_id'] + 1)
                 if 'callback_query' in update and 'data' in update['callback_query']:
                     callback_data = update['callback_query']['data']
                     if 'data' in update['callback_query']:
                         callback_handler(callback_data)
-                    PROCCESSED_OFFSET = max(PROCCESSED_OFFSET, update['update_id'] + 1)
+            PROCCESSED_OFFSET = max(PROCCESSED_OFFSET, update['update_id'] + 1)
         time.sleep(0.75)
     except Exception as e:
         print(f'Error occurred: {e}')
