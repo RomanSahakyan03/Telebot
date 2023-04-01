@@ -3,7 +3,7 @@ import time
 import requests
 
 # Set up API endpoint and bot token
-API_LINK = "https://api.telegram.org/bot6230593358:AAFqvivxeQtuW2q2zQLQsJNWC5_xuvqEsHA"
+API_LINK = "https://api.telegram.org/bot6114753472:AAFBAES3t622glVzoe5-4BpKF0hjbBeX6_c"
 GET_UPDATES_URL = f"{API_LINK}/getUpdates"
 SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
 INLINE_KEYBOARD = f"{API_LINK}/InlineKeyboardMarkup"

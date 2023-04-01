@@ -4,14 +4,7 @@ import requests
 import os
 
 # Set up API endpoint and bot token
-API_LINK = "https://api.telegram.org/bot6230593358:AAFqvivxeQtuW2q2zQLQsJNWC5_xuvqEsHA"
-
-
-logo = {
-    "chat_id"
-}
-
-
+API_LINK = "https://api.telegram.org/bot6114753472:AAFBAES3t622glVzoe5-4BpKF0hjbBeX6_c"
 
 description = {
     "name": "Anonymous Chatbot with MBTI Test",
@@ -49,29 +42,3 @@ if response.ok:
     print('Commands Menu set succesfully.')
 else:
     print('Failed to set Commands Menu.')
-
-# Upload the photo to Telegram servers
-url = f"{API_LINK}/sendPhoto"
-photo_path = os.path.join(os.getcwd(), "pics", "logo.jpg")
-files = {"photo": open(photo_path, "rb")}
-response = requests.post(url, files=files)
-
-if response.status_code != 200:
-    print(f"Error uploading photo: {response.text}")
-    exit()
-
-photo_id = response.json().get("result", {}).get("photo", [])[-1].get("file_id")
-if not photo_id:
-    print("No photo_id found in response")
-    exit()
-
-# Set the photo as the bot profile photo
-url = f"{API_LINK}/setMyBotPicture"
-data = {"photo": json.dumps({"id": photo_id})}
-response = requests.post(url, data=data)
-
-if response.status_code != 200:
-    print(f"Error setting bot profile photo: {response.text}")
-    exit()
-
-print("Bot profile photo set successfully")
