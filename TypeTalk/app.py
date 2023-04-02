@@ -2,6 +2,7 @@ import json
 import time
 import requests
 
+
 # Set up API endpoint and bot token
 API_LINK = "https://api.telegram.org/bot6114753472:AAFBAES3t622glVzoe5-4BpKF0hjbBeX6_c"
 GET_UPDATES_URL = f"{API_LINK}/getUpdates"
