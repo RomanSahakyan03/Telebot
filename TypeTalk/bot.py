@@ -12,7 +12,7 @@ db.create_table('users', [
     'region_lon TEXT',
     'age INTEGER(1)', 
     'age_interval TEXT',
-    'rate INTEGER(1)',
+    'rate INTEGER(1) DEFAULT 5',
     'gender TEXT',
     'preferred_genders TEXT'
 ])

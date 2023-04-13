@@ -1,0 +1,171 @@
+import json
+import requests
+
+API_LINK = "https://api.telegram.org/bot6114753472:AAFBAES3t622glVzoe5-4BpKF0hjbBeX6_c"
+SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
+SEND_PHOTO_URL = f"{API_LINK}/sendPhoto"
+SEND_AUDIO_URL = f"{API_LINK}/sendAudio"
+SEND_DOCUMENT_URL = f"{API_LINK}/sendDocument"
+SEND_VIDEO_URL = f"{API_LINK}/sendVideo"
+SEND_ANIMATION_URL = f"{API_LINK}/sendAnimation"
+SEND_LOCATION_URL = f"{API_LINK}/sendLocation"
+SEND_VIDEONOTE_URL = f"{API_LINK}/sendVideoNote"
+SEND_STICKER_URL = f"{API_LINK}/sendSticker"
+SEND_POLL_URL = f"{API_LINK}/sendPoll"
+
+def send_message(receiver, update):
+    chat_id = update['message']['from']['id']
+    text = update['message']['text']
+    data = {
+            "chat_id": receiver,
+            "text": text,
+        }
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+    response = requests.post(SEND_MESSAGE_URL, json=data)
+    if response.ok:
+        print(f"message sent successfully from {chat_id} to {receiver}")
+    else:
+        print(f"failed to send message from {chat_id} to {receiver}")
+
+def send_photo(receiver, update): 
+    photo = update["message"]["photo"][-1]["file_id"]
+    data = {
+        "chat_id" : receiver,
+        "photo" : photo,
+    }
+    if "caption" in update["message"]:
+        data["caption"] = update["message"]["caption"]
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+    
+    response = requests.post(SEND_PHOTO_URL, json=data)
+    if response.ok:
+        print(f"Photo sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Photo message.")
+
+def send_audio(receiver, update):
+    data = {
+        "chat_id" : receiver,
+        "audio" : update["message"]["voice"]["file_id"]
+    }
+
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+    
+    response = requests.post(SEND_AUDIO_URL, json=data)
+    if response.ok:
+        print(f"Audio sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Audio message.")
+
+def send_document(receiver, update):
+    data = {
+        "chat_id" : receiver,
+        "document" : update["message"]["document"]["file_id"],
+    }
+    if "caption" in update["message"]:
+        data["caption"] = update["message"]["caption"]
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+    
+
+    response = requests.post(SEND_DOCUMENT_URL, json=data)
+    if response.ok:
+        print(f"Document sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Document message.")
+
+def send_video(receiver, update):
+    video = update["message"]["video"]["file_id"]
+    data = {
+        "chat_id" : receiver,
+        "video" : video,
+    }
+    if "caption" in update["message"]:
+        data["caption"] = update["message"]["caption"]
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+
+    response = requests.post(SEND_VIDEO_URL, json=data)
+    if response.ok:
+        print(f"Video sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Video message.")   
+
+def send_animation(receiver, update):
+    animation = update["message"]["animation"]["file_id"]
+    data = {
+        "chat_id" : receiver,
+        "animation" : animation
+    }
+    if "caption" in update["message"]:
+        data["caption"] = update["message"]["caption"]
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+    response = requests.post(SEND_ANIMATION_URL, json=data)
+    if response.ok:
+        print(f"Animation sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Animation message.")
+
+def send_location(receiver, update):
+    latitude = update['message']['location']['latitude']
+    longitude = update['message']['location']['longitude']
+    data = {
+        "chat_id" : receiver,
+        'latitude' : latitude,
+        'longitude' : longitude,        
+    }
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+
+    response = requests.post(SEND_LOCATION_URL, json=data)
+    if response.ok:
+        print(f"Location sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Location message.")
+    
+def send_video_note(receiver, update):
+    video_note = update["message"]["video_note"]["file_id"]
+    data = {
+        "chat_id" : receiver,
+        "video_note" : video_note,
+    }
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+
+    response = requests.post(SEND_VIDEONOTE_URL, json=data)
+    if response.ok:
+        print(f"VideoNote sent to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} VideoNote message.")
+
+def send_sticker(receiver, update):
+    data = {
+        "chat_id" : receiver,
+        "sticker" : update["message"]["sticker"]["file_id"]
+    }
+    if "reply_to_message" in update["message"]:
+        data["reply_to_message_id"] = update["message"]["reply_to_message"]["message_id"]
+
+    response = requests.post(SEND_STICKER_URL, json=data)
+    if response.ok:
+        print(f"Stiker sent from to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Sticker message.")
+
+def send_poll(receiver, update):
+    data = {
+        "chat_id" : receiver,
+        "question" : update["message"]["poll"]["question"],
+        "options" : update["message"]["poll"]["options"],
+        "is_anonymous" : True,
+        "allows_multiple_answers" : update["message"]["poll"]["allows_multiple_answers"],
+    }
+    response = requests.post(SEND_POLL_URL, json=data)
+    if response.ok:
+        print(f"Poll sent from to {receiver} successfully.")
+    else:
+        print(f"Failed to send {receiver} Poll message.")
