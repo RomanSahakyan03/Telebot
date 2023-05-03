@@ -1,0 +1,86 @@
+{
+    "about page": {
+      "en" : "Welcome to TypeTalk! \nWe're an anonymous chatbot that connects you with like-minded people based on your MBTI personality type.\n\nInstructions: \nType /join to start a new chat\nUse /settings to customize your search parameters. \nUse /stop to end a chat anytime. \nUse /next to switch chat partners during a conversation. \n\nWe prioritize your privacy and ensure that all chats are anonymous and kept confidential!!",
+      "fr" : "Bienvenue sur TypeTalk ! \nNous sommes un chatbot anonyme qui vous connecte avec des personnes similaires en fonction de votre type de personnalité MBTI.\n\nInstructions: \nTapez /join pour commencer un nouveau chat\nUtilisez /settings pour personnaliser vos paramètres de recherche. \nUtilisez /stop pour mettre fin à une conversation à tout moment. \nUtilisez /next pour changer de partenaire de conversation. \n\nNous donnons la priorité à votre vie privée et nous assurons que tous les chats sont anonymes et confidentiels !",
+      "ru" : "Добро пожаловать в TypeTalk! \nМы - анонимный чат-бот, который соединяет вас с единомышленниками на основе вашего типа личности MBTI.\n\nИнструкции: \nВведите /join, чтобы начать новый чат\nИспользуйте /settings, чтобы настроить параметры поиска. \nИспользуйте /stop, чтобы закончить чат в любое время. \nИспользуйте /next, чтобы переключиться на другого партнера во время разговора. \n\nМы уделяем особое внимание вашей конфиденциальности и гарантируем, что все чаты являются анонимными и остаются конфиденциальными!!",
+      "es" : "¡Bienvenido a TypeTalk! \nSomos un chatbot anónimo que te conecta con personas afines según tu tipo de personalidad MBTI.\n\nInstrucciones: \nEscribe /join para empezar un nuevo chat\nUsa /settings para personalizar tus parámetros de búsqueda. \nUsa /stop para terminar un chat en cualquier momento. \nUsa /next para cambiar de pareja de conversación. \n\n¡Priorizamos tu privacidad y aseguramos que todas las conversaciones son anónimas y confidenciales!"
+    },
+    "main keyboard" : {
+      "joining" : {
+        "en" : "👋 Start The Conversation",
+        "fr" : "👋 Commencer la conversation",
+        "ru" : "👋 Начать разговор",
+        "es" : "👋 Comenzar la conversación"
+      },
+      "settings":{
+        "en" : "🛠️ Manage your Settings",
+        "fr" : "🛠️ Gérer vos paramètres",
+        "ru" : "🛠️ Управление настройками",
+        "es" : "🛠️ Administrar tus ajustes"
+      },
+      "about page":{
+        "en" : "📖 About the bot",
+        "fr" : "📖 À propos du bot",
+        "ru" : "📖 О боте",
+        "es" : "📖 Sobre el bot"
+      }
+    },
+    "set language" : {
+      "en" : "Language set Successfully",
+      "fr" : "Langue définie avec succès",
+      "ru" : "Язык успешно установлен",
+      "es" : "Idioma establecido correctamente"
+    },
+    "ended conversation" : {
+      "en" : "👋 Conversation ended. Type /join to begin a new conversation.",
+      "fr" : "👋 Conversation terminée. Tapez /join pour commencer une nouvelle conversation.",
+      "ru" : "👋 Разговор окончен. Введите /join, чтобы начать новый разговор.",
+      "es" : "👋 Conversación finalizada. Escribe /join para comenzar una nueva conversación."
+    },
+    "settings" : {
+      "lang" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      },
+      "type" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      },
+      "types" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      },
+      "age" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      },
+      "ages" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      },
+      "gender" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      },
+      "genders" : {
+        "en" : "",
+        "fr" : "",
+        "ru" : "",
+        "es" : ""
+      }
+    }
+
+
+  }
