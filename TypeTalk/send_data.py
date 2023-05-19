@@ -25,8 +25,8 @@ def send_message(receiver, update):
         data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
         
     response = requests.post(SEND_MESSAGE_URL, json=data)
+    chat_id = update['message']['from']['id']
     if response.ok:
-        chat_id = update['message']['from']['id']
         print(f"message sent successfully from {chat_id} to {receiver}")
         response_data = response.json()
         message_id1 = update['message']['message_id']
