@@ -3,10 +3,10 @@ import json
 import redis
 import requests
 import os
-import config
+from config import create_redis_client
 from geopy import Nominatim
 
-cache = redis.Redis(host='localhost', port=6379, db=0) 
+cache = create_redis_client() 
 
 # Create an instance of the geocoder
 geolocator = Nominatim(user_agent="TypeTalk")
@@ -82,7 +82,7 @@ def del_pair(chat_id1):
     cache.hdel('pairs', chat_id1)
     cache.hdel('pairs', chat_id2)
 
-def send_request(data: dict, method: str, handler):
+def send_request(data: dict, method: str, handler = None):
     if handler:
         handler_success = f"{handler} opened Successfully."
         handler_fail = f"Failed to open {handler}."
@@ -95,7 +95,6 @@ def send_request(data: dict, method: str, handler):
         print(handler_success)
     else:
         print(handler_fail)
-    # print(response.json())
     return response.json()['result']
 
 if __name__ ==  "__main__":

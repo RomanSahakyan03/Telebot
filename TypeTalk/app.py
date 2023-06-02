@@ -2,15 +2,15 @@ import json
 import re
 import threading
 import time
-import redis
 import requests
 from db import BotDB
 from edit_data import *
 from send_data import *
 from utils import *
+from config import create_redis_client
 
 db = BotDB("TypeTalk/userdata.db")
-cache = redis.Redis(host='localhost', port=6379, db=0)
+cache = create_redis_client()
 
 def system_send_message(receiver, text,reply_markup = None, handler = None):
     data = {
@@ -22,6 +22,7 @@ def system_send_message(receiver, text,reply_markup = None, handler = None):
 
     if handler is None:
         handler = f"{receiver} message sent"
+
     content = send_request(data, "sendMessage", handler)
 
     return content
@@ -39,6 +40,7 @@ def system_edit_message(receiver, message_id, text = None,reply_markup = None, h
 
     if handler is None:
         handler = f"{receiver} message edited"
+
     content = send_request(data, "editMessageText", handler)
 
     return content
@@ -107,7 +109,7 @@ def shareprofile(update):
 def matching_system():
     while True:
         while cache.scard("waiting_pool") < 2:
-            time.sleep(1) # adjustable
+            time.sleep(2) # adjustable
         print("the elems are more than two")
         chat_id1, chat_id2 = cache.srandmember("waiting_pool", 2)
         chat_id1 = int(chat_id1)
@@ -119,6 +121,14 @@ def matching_system():
         first_types = params1["TYPES"]
         second_type = params2["TYPE"]
         second_types = params2["TYPES"]
+
+
+        # if no one selected <=> all types available
+        if int(first_types) == 0:
+            first_types = 65535 
+        if int(second_types) == 0:
+            second_types = 65535
+
 
         is_type1 = bool(int(second_types) & (1 << int(first_type)))
         is_type2 = bool(int(first_types) & (1 << int(second_type)))
@@ -161,8 +171,8 @@ def matching_system():
         cache.srem("waiting_pool", chat_id2)
         cache.hdel("waiting_message", chat_id1)
         cache.hdel("waiting_message", chat_id2)
-        system_send_message(chat_id1, "your partner has been found", None, "partner message")
-        system_send_message(chat_id2, "your partner has been found", None, "partner message")
+        system_send_message(chat_id1, "your partner has been found", {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
+        system_send_message(chat_id2, "your partner has been found", {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
         make_pair(chat_id1, chat_id2)
 
 
@@ -171,25 +181,33 @@ def matching_system():
 def join(update):
     start = time.time()
     chat_id = update['message']['from']['id']
+    if cache.sismember("waiting_pool", chat_id):
+        return
     params = db.select_parameter("*", f"chat_id = {chat_id}")
     lang = params["language"]
     if db.check_all_columns_filled(chat_id):
         lat, lon = params["region_lat"], params["region_lon"]
         name = from_coords_to_name(lat, lon)
         age = params["age"]
-        prefered_ages = params["age_interval"]
+        preferred_ages = params["age_interval"]
+        type = params["TYPE"]
+        types = int(params["TYPES"])
+        num_bits = 16
+        types_list = [f"{mbti_types[bit]}" for bit in range(num_bits) if (types >> bit) & 1]
 
+        print(types_list)
         text = f"{texts['join']['first_part'][lang]}\n"
         text += f"{texts['join']['age'][lang]}{age}\n"
-        text += f"{texts['join']['prefarred_ages'][lang]}{prefered_ages}\n"
+        text += f"{texts['join']['prefarred_ages'][lang]}{preferred_ages}\n"
         text += f"{texts['join']['region'][lang]}{name}\n"
+        text += f"{texts['join']['type'][lang]}{mbti_types[type]}\n"
+        text += f"{texts['join']['types'][lang]}{', '.join(types_list)}"
         keyboard = cancel_keyboard(chat_id, "waiting")
 
         # Send the message
         content = system_send_message(chat_id, text, keyboard, "waiting message")
-    if not cache.sismember("waiting_pool", chat_id):
-            cache.sadd("waiting_pool", chat_id, content["message_id"])
-            cache.hset("waiting_message", chat_id, )
+        cache.sadd("waiting_pool", chat_id)
+        cache.hset("waiting_message", chat_id, content["message_id"])
     else:
         print(chat_id)
         system_send_message(chat_id, texts["do_not_join"][lang], None, "not joining error message")
@@ -217,11 +235,8 @@ def about(update):
         "caption" : texts["about page"][lang],
         "reply_markup" : json.dumps(main_keyboard(chat_id))
     }
-    response = requests.post(SEND_PHOTO_URL, json=data)
-    if response.ok:
-        print(f"About menu opened for {chat_id} successfully.")
-    else:
-        print(f"Failed to open About menu for {chat_id}.")
+
+    send_request(data, "sendPhoto", f"About menu opened for {chat_id}")
 
 def stop(update):
     chat_id1 = update['message']['from']['id']
@@ -256,10 +271,11 @@ def settings(update):
 # Can be 'age_collect', 'age_interval', 'region_collect'
 def state_handler(update, state):
     chat_id = update['message']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     condition = f'chat_id = {chat_id}'
     if state == 'age_collect':
         if "message" not in update or "text" not in update["message"]:
-            system_send_message(chat_id, "invalid data", None, "age set error")
+            system_send_message(chat_id, texts["invalid data"][lang], None, "age set error")
             return
         text = update['message']['text']
         pattern = r"^(\d+)$"
@@ -269,7 +285,7 @@ def state_handler(update, state):
                 system_send_message(chat_id, 'your age is not enough(', None, 'error setage message')
             else:
                 db.upsert_user_data({'age' : text}, condition)
-                system_send_message(chat_id, 'age set succesfully', None, 'setage')
+                system_send_message(chat_id, text["age set"][lang], None, 'setage')
         else:
             system_send_message(chat_id, 'this isn\'t look like age', None, 'error setage message')
     elif state == 'age_interval':
@@ -372,6 +388,7 @@ def change_p_types(update):
 def handle_language(update):
     chat_id = update['callback_query']['from']['id']
     callback_data = update['callback_query']['data']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
     system_send_message(chat_id, texts["set language"][callback_data], None, "language parameter")
 
@@ -382,24 +399,27 @@ def handle_clall(update):
 
 def lang_setting(update):
     chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Preferred language?", lang_keyboard, 'Language selection menu')
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    system_send_message(chat_id, texts["lang settings"][lang], lang_keyboard, 'Language selection menu')
 
 def TYPE_setting(update):
     chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     # Create the keyboard
     keyboard = {
     "inline_keyboard": [
         [{"text": mbti_types[bit], "callback_data": mbti_types[bit] + "_m"} for bit in range(row * 4, (row + 1) * 4) if bit < 16] for row in range((16 - 1) // 4 + 1)
     ]}
 
-    system_send_message(chat_id, 'Choose your MBTI type', keyboard, 'MBTI type selection menu')
+    system_send_message(chat_id, texts["type settings"][lang], keyboard, 'MBTI type selection menu')
 
 def TYPES_setting(update):
     chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     x = db.select_parameter("TYPES", f"chat_id = {chat_id}")['TYPES']
     keyboard = get_mbti_types_keyboard(x)
 
-    system_send_message(chat_id, "Choose your preffered MBTI types", keyboard, 'MBTI preffered types selection menu')
+    system_send_message(chat_id, texts["types settings"][lang], keyboard, 'MBTI preffered types selection menu')
 
 def handle_cancel_state(update):
     chat_id = update['callback_query']['from']['id']
@@ -514,7 +534,7 @@ def main():
             time.sleep(5)
 
 if __name__ ==  "__main__":
-    # matching_thread = threading.Thread(target=matching)
+    # matching_thread = threading.Thread(target=matching_system)
     # matching_thread.start()
     main()
     # matching_thread.join()

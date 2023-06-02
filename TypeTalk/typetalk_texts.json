@@ -25,6 +25,36 @@
       "es" : "📖 Sobre el bot"
     }
   },
+  "invalid data" : {
+    "en" : "invalid data",
+    "fr" : "données invalides",
+    "ru" : "не верный ввод",
+    "es" : "datos inválidos"
+  },
+  "age set" : {
+    "en" : "age set succesfully",
+    "fr" : "âge défini avec succès",
+    "ru" : "возраст успешно установлен",
+    "es" : "edad establecida correctamente"
+  },
+  "type setting" : {
+    "en" : "Choose your MBTI type", 
+    "fr" : "Choisissez votre type MBTI", 
+    "ru" : "Выберите свой тип MBTI.", 
+    "es" : "Elige tu tipo de MBTI"  
+  },
+  "types setting" : {
+    "en" : "Choose MBTI types (If no selection, all types will be chosen)", 
+    "fr" : "Choisissez les types MBTI (Si aucun choix n'est fait, tous les types seront sélectionnés)", 
+    "ru" : "Выберите типы MBTI (Если ничего не выбрано, будут выбраны все типы)", 
+    "es" : "Elige los tipos MBTI (Si no se hace ninguna selección, se asumirá que se eligen todos los tipos)"
+  },
+  "lang settings" : {
+    "en" : "Preferred language?",
+    "fr" : "Langue préférée ?",
+    "ru" : "Предпочитаемый язык?",
+    "es" : "¿Idioma preferido?"
+  },
   "set language" : {
     "en" : "Language set Successfully",
     "fr" : "Langue définie avec succès",
@@ -173,6 +203,18 @@
       "fr" : "Région : ",
       "ru" : "Регион : ",
       "es" : "Región : "
-      }
+      },
+    "type" : {
+      "en" : "Your Type : ",
+      "fr" : "Votre type : ",
+      "ru" : "Ваш тип : ",
+      "es" : "Tu tipo : "
+    },
+    "types" : {
+      "en" : "Your Preferred Type : ",
+      "fr" : "Votre type préféré : ",
+      "ru" : "Ваш предпочитаемый тип: ",
+      "es" : "Tu tipo preferido:"
+    }
   }
 }

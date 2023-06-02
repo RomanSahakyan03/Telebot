@@ -1,9 +1,8 @@
 import requests
-import redis
 import os
+from config import create_redis_client
 
-
-cache = redis.Redis(host='localhost', port=6379, db=0)
+cache = create_redis_client()
 telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
 API_LINK = f"https://api.telegram.org/bot{telegram_token}"
 SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
