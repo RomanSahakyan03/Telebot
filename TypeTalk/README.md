@@ -8,17 +8,33 @@ TypeTalk is a Telegram chat bot that connects users anonymously based on their p
 2. Clone the repository from GitHub.
 3. Install the required modules by running `pip install -r requirements.txt`.
 
-## Configuration
+Configuration
 
 To configure TypeTalk, follow these steps:
 
-1. Obtain a Telegram API token from the [Telegram BotFather](https://core.telegram.org/bots#3-how-do-i-create-a-bot).
-2. Set the `TELEGRAM_API_TOKEN` environment variable to your Telegram API token.
-3. Specify the connection details for your Redis server in the `config.py` file.
+    Obtain a Telegram API token from the Telegram BotFather.
+
+    Set the TELEGRAM_API_TOKEN environment variable to your Telegram API token. Open your terminal and execute the following command:
+
+    bash
+    ```
+    export TELEGRAM_API_TOKEN=<your_telegram_api_token>
+    ```
+Replace <your_telegram_api_token> with the token you obtained from Telegram BotFather.
+
+Ensure that your Redis server is up and running. If you don't have Redis installed, you can download and install it from the Redis website. Once Redis is installed, start the Redis server by running the following command in your terminal:
+
+bash
+```
+redis-server
+```
+This will start the Redis server using the default configuration (host: localhost, port: 6379). If your Redis server is running on a different host or port, make sure to update the connection details accordingly.
+
+You're all set! Now you can run TypeTalk and start using it for your Telegram bot communication.
 
 ## Usage
 
-1. Start the TypeTalk bot by running `python main.py`.
+1. Start the TypeTalk bot by running `python app.py`.
 2. Interact with the bot through Telegram by sending commands and providing your parameters.
 3. TypeTalk will match you with another user based on compatible parameters and establish an anonymous connection.
 
