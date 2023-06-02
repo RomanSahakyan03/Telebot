@@ -1,0 +1,21 @@
+# Ignore compiled Python files
+*.pyc
+__pycache__/
+
+# Ignore environment and configuration files
+config.py
+.env
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+
+# Ignore logs and temporary files
+logs/
+temp/
+
+# Ignore package dependencies
+venv/
+
+# Ignore config file
+config.py

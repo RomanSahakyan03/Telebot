@@ -1,8 +1,9 @@
 import requests
 import redis
-
+import os
 cache = redis.Redis(host='localhost', port=6379, db=0)
-API_LINK = "https://api.telegram.org/bot6114753472:AAFBAES3t622glVzoe5-4BpKF0hjbBeX6_c"
+telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
+API_LINK = f"https://api.telegram.org/bot{telegram_token}"
 EDIT_MESSAGE_URL = f"{API_LINK}/editMessageText"
 EDIT_CAPTION_URL = f"{API_LINK}/editMessageCaption"
 EDIT_MEDIA_URL = f"{API_LINK}/editMessageMedia"

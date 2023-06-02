@@ -7,17 +7,10 @@ class BotDB:
             db_file, detect_types=sqlite3.PARSE_COLNAMES, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
-    def create_table(self, columns):
+    def create_table(self, table,columns):
         columns_str = ", ".join(columns)
-        create_table_query = f"CREATE TABLE IF NOT EXISTS users ( {columns_str} );"
+        create_table_query = f"CREATE TABLE IF NOT EXISTS {table} ( {columns_str} );"
         self.cursor.execute(create_table_query)
-        self.conn.commit()
-
-    def insert_user_data(self, data_dict):
-        columns = ", ".join(data_dict.keys())
-        values = ", ".join(["?" for i in range(len(data_dict))])
-        insert_query = f"INSERT INTO users ({columns}) VALUES ({values})"
-        self.cursor.execute(insert_query, tuple(data_dict.values()))
         self.conn.commit()
 
     def select_parameter(self, columns="*", condition=None):
@@ -32,11 +25,22 @@ class BotDB:
             return None
 
     def check_exist(self, chat_id):
-        user_params = self.select_parameter(
-            columns="*", condition="chat_id = ?", params=(chat_id,))
-        num_cols = len(self.cursor.description)
+        user_params = self.select_parameter(columns="*", condition="chat_id = ?", params=(chat_id,))
         num_filled_cols = len([v for v in user_params[0] if v is not None])
-        return bool(user_params) and num_filled_cols == num_cols - 1
+        return bool(user_params) and num_filled_cols == len(self.cursor.description) - 1
+
+    def check_all_columns_filled(self, chat_id):
+        cursor = self.cursor
+
+        # Execute the SELECT query with the condition
+        query = f"SELECT * FROM users WHERE chat_id = {chat_id}"
+        cursor.execute(query)
+
+        # Fetch the first row matching the condition
+        row = cursor.fetchone()
+
+        # Check if the row exists and all columns are filled
+        return bool(row) and all(value is not None for value in row)
 
     def is_chat_id_exists(self, chat_id):
         select_query = "SELECT 1 FROM users WHERE chat_id = ?"

@@ -1,16 +1,31 @@
 import math
 import json
 import redis
+import requests
+import os
+import config
+from geopy import Nominatim
+
 cache = redis.Redis(host='localhost', port=6379, db=0) 
+
+# Create an instance of the geocoder
+geolocator = Nominatim(user_agent="TypeTalk")
+
+
+def from_coords_to_name(latitude, longitude):
+    # Reverse geocode the coordinates to get the location information
+    location = geolocator.reverse((latitude, longitude), exactly_one=True)
+    address = location.raw['address']
+
+    places = ["village", "town", "city"]
+    for place in places:
+        if name := address.get(place, ''):
+            return name
+    return "somewhere lol"
+
 # Set up API endpoint and bot token
-
-
-API_LINK = "https://api.telegram.org/bot6114753472:AAFBAES3t622glVzoe5-4BpKF0hjbBeX6_c"
-GET_UPDATES_URL = f"{API_LINK}/getUpdates"
-SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
-DELETE_MESSAGE_URL = f"{API_LINK}/deleteMessage"
-INLINE_KEYBOARD = f"{API_LINK}/InlineKeyboardMarkup"
-EDIT_MESSAGE_URL = f"{API_LINK}/editMessageText"
+telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
+API_LINK = f"https://api.telegram.org/bot{telegram_token}"
 
 with open('TypeTalk/typetalk_texts.json', 'r', encoding="UTF-8") as f:
     texts = json.load(f)
@@ -48,18 +63,13 @@ def get_mbti_types_keyboard(x):
     keyboard["inline_keyboard"].append([{"text" : "clear all", "callback_data" : "clall"}])
     return keyboard
 
-def main_keyboard(chat_id):
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-    keyboard = {
-        "keyboard":
-            [[{"text": texts["main keyboard"]["joining"][lang]},
-            {"text": texts["main keyboard"]["settings"][lang]}],
-            [{"text": texts["main keyboard"]["about page"][lang]}]],
-
-        "resize_keyboard": True,
-        "one_time_keyboard" : True
-    }
-    return keyboard
+lang_keyboard = {
+    "inline_keyboard": [
+        [{"text": "🇺🇸 English", "callback_data": "en"},
+        {"text": "🇷🇺 Русский", "callback_data": "ru"}],
+        [{"text": "🇫🇷 français", "callback_data": "fr"},
+        {"text": "🇪🇸 Español", "callback_data": "es"}]
+        ]}
 
 def make_pair(chat_id1, chat_id2):
     cache.hset('pairs', chat_id1, chat_id2)
@@ -71,6 +81,22 @@ def del_pair(chat_id1):
     cache.delete(str(chat_id2))
     cache.hdel('pairs', chat_id1)
     cache.hdel('pairs', chat_id2)
+
+def send_request(data: dict, method: str, handler):
+    if handler:
+        handler_success = f"{handler} opened Successfully."
+        handler_fail = f"Failed to open {handler}."
+    else:
+        handler_success = f"{method.capitalize()} request successful."
+        handler_fail = f"{method.capitalize()} request failed."
+
+    response = requests.post(f"{API_LINK}/{method}", json=data)
+    if response.status_code == 200:
+        print(handler_success)
+    else:
+        print(handler_fail)
+    # print(response.json())
+    return response.json()['result']
 
 if __name__ ==  "__main__":
     pass

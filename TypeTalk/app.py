@@ -12,7 +12,6 @@ from utils import *
 db = BotDB("TypeTalk/userdata.db")
 cache = redis.Redis(host='localhost', port=6379, db=0)
 
-
 def system_send_message(receiver, text,reply_markup = None, handler = None):
     data = {
             "chat_id": receiver,
@@ -21,19 +20,28 @@ def system_send_message(receiver, text,reply_markup = None, handler = None):
     if reply_markup:
         data["reply_markup"] = json.dumps(reply_markup)
 
-    if handler:
-        handler_success = f"{handler} opened Successfully."
-        handler_fail = f"Failed to open {handler}."
-    else:
-        handler_success = "Message sent successfully."
-        handler_fail = "Failed to send message."
-    response = requests.post(SEND_MESSAGE_URL, json=data)
-    if response.ok:
-        print(handler_success)
-    else:
-        print(handler_fail)
+    if handler is None:
+        handler = f"{receiver} message sent"
+    content = send_request(data, "sendMessage", handler)
 
-    return response.content
+    return content
+
+def system_edit_message(receiver, message_id, text = None,reply_markup = None, handler = None):
+    data = {
+        "chat_id": receiver,
+        "message_id" : message_id,
+    }
+    if text:
+        data["text"] = text
+        
+    if reply_markup:
+        data["reply_markup"] = json.dumps(reply_markup)
+
+    if handler is None:
+        handler = f"{receiver} message edited"
+    content = send_request(data, "editMessageText", handler)
+
+    return content
 
 def system_edit_types_message(receiver, message_id, res = None):
     if res is None:
@@ -46,35 +54,60 @@ def system_edit_types_message(receiver, message_id, res = None):
         "text" : "Choose your preffered MBTI types",
         "reply_markup" : json.dumps(keyboard)
     }
-    response = requests.post(EDIT_MESSAGE_URL, json=data)
-    if response.ok:
-            print(f"types choosing menu for {receiver} updated successfully")
-    else:
-            print(f"failed to update types choosing menu for {receiver}")
+
+    content = send_request(data, "editMessageText")
+
+    return content
 
 def system_delete_message(receiver, message_id):
     data = {
         "chat_id" : receiver,
         "message_id" : message_id
     }
-    response = requests.post(DELETE_MESSAGE_URL, json=data)
-    if response.ok:
-            print(f"{receiver} message deleted successfully")
-    else:
-            print(f"failed to delete message for {receiver}")
+
+    handler = f"{receiver} message deleted"
+    content = send_request(data, "deleteMessage", handler)
+
+    return content
+
+def main_keyboard(chat_id):
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    keyboard = {
+        "keyboard":
+            [[{"text": texts["main keyboard"]["joining"][lang]},
+            {"text": texts["main keyboard"]["settings"][lang]}],
+            [{"text": texts["main keyboard"]["about page"][lang]}]],
+
+        "resize_keyboard": True,
+        "one_time_keyboard" : True
+    }
+    return keyboard
+
+# cancel only "state" or "waiting"
+def cancel_keyboard(chat_id, option):
+    cancel = "cancel_" + option
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    keyboard = {
+    "inline_keyboard": [
+        [{"text": texts["cancel_keyboard"][lang], "callback_data": cancel}]
+    ]}
+    return keyboard
 
 def shareprofile(update):
     chat_id = update['message']['from']['id']
-    username = update['message']['from']['username']
-    receiver = cache.hget('pairs', chat_id).decode()
-    text = "Here is the @" + username + '.'
-    system_send_message(receiver, text, None,'Shareprofile message')
+    if cache.hexists('pairs', chat_id):
+        if 'username' in update['message']['from']:
+            username = update['message']['from']['username']
+            receiver = cache.hget('pairs', chat_id).decode()
+            text = "Here is the @" + username + '.'
+            system_send_message(receiver, text, None,'Shareprofile message')
+        else:
+            system_send_message(chat_id, "You have no username to share....", None, "NoShareprofile message")
 
-def matching():
+def matching_system():
     while True:
         while cache.scard("waiting_pool") < 2:
-            print("waiting..")
-            time.sleep(2)
+            time.sleep(1) # adjustable
         print("the elems are more than two")
         chat_id1, chat_id2 = cache.srandmember("waiting_pool", 2)
         chat_id1 = int(chat_id1)
@@ -100,12 +133,12 @@ def matching():
         second_ages = params2["age_interval"]
         second_ages = second_ages.split('-')
 
-        if not (int(second_ages[0]) < int(first_age) < int(second_ages[1])):
+        if not (int(second_ages[0]) <= int(first_age) <= int(second_ages[1])):
             continue
 
         first_ages = first_ages.split('-')
 
-        if not (int(first_ages[0]) < int(second_age) < int(first_ages[1])):
+        if not (int(first_ages[0]) <= int(second_age) <= int(first_ages[1])):
             continue
 
         print("age matching passed")
@@ -122,9 +155,12 @@ def matching():
         #checking gender
         # ...
 
+        system_delete_message(chat_id1, cache.hget("waiting_message", chat_id1))
+        system_delete_message(chat_id2, cache.hget("waiting_message", chat_id2))
         cache.srem("waiting_pool", chat_id1)
         cache.srem("waiting_pool", chat_id2)
-
+        cache.hdel("waiting_message", chat_id1)
+        cache.hdel("waiting_message", chat_id2)
         system_send_message(chat_id1, "your partner has been found", None, "partner message")
         system_send_message(chat_id2, "your partner has been found", None, "partner message")
         make_pair(chat_id1, chat_id2)
@@ -133,29 +169,41 @@ def matching():
         print("end matching ")
 
 def join(update):
+    start = time.time()
     chat_id = update['message']['from']['id']
+    params = db.select_parameter("*", f"chat_id = {chat_id}")
+    lang = params["language"]
+    if db.check_all_columns_filled(chat_id):
+        lat, lon = params["region_lat"], params["region_lon"]
+        name = from_coords_to_name(lat, lon)
+        age = params["age"]
+        prefered_ages = params["age_interval"]
 
-    keyboard = {
-        "keyboard":
-        {"text": "Cancel"},
-        "resize_keyboard": True,
-        "one_time_keyboard" : True
-    }
-    system_send_message(chat_id, "waiting..", keyboard)
+        text = f"{texts['join']['first_part'][lang]}\n"
+        text += f"{texts['join']['age'][lang]}{age}\n"
+        text += f"{texts['join']['prefarred_ages'][lang]}{prefered_ages}\n"
+        text += f"{texts['join']['region'][lang]}{name}\n"
+        keyboard = cancel_keyboard(chat_id, "waiting")
 
+        # Send the message
+        content = system_send_message(chat_id, text, keyboard, "waiting message")
     if not cache.sismember("waiting_pool", chat_id):
-        cache.sadd("waiting_pool", chat_id)
+            cache.sadd("waiting_pool", chat_id, content["message_id"])
+            cache.hset("waiting_message", chat_id, )
+    else:
+        print(chat_id)
+        system_send_message(chat_id, texts["do_not_join"][lang], None, "not joining error message")
+    print(time.time() - start)
     
 # Define a function to handle the /start command
 def start(update):
     chat_id = update['message']['from']['id']
-    name = update['message']['from']['first_name']
-    print(db.is_chat_id_exists(chat_id))
     if db.is_chat_id_exists(chat_id) is False:
+        name = update['message']['from']['first_name']
         db.insert_user(chat_id)
-        text = "Hey there, " + name + "! Welcome to TypeTalk, the anonymous chatbot based on MBTI personality types." \
-            "To get started, we recommend setting your search parameters in /settings.For more infromation type /about"
-        system_send_message(chat_id, text, main_keyboard(chat_id), "Start menu")
+        text = "Hey there, " + name + "! Welcome to TypeTalk, the anonymous chatbot based on MBTI personality types. " \
+       "To get started, please choose your preferred language by selecting one of the options below:"
+        system_send_message(chat_id, text, lang_keyboard, "Start menu")
     else:
         join(update)
 
@@ -185,105 +233,25 @@ def stop(update):
         system_send_message(chat_id2, texts["ended conversation"][lang2], main_keyboard(chat_id2))
         del_pair(chat_id1)
 
-def lang_setting(update):
-    chat_id = update['callback_query']['from']['id']
-    keyboard = {
-    "inline_keyboard": [
-        [{"text": "🇺🇸 English", "callback_data": "en"},
-        {"text": "🇷🇺 Русский", "callback_data": "ru"}],
-        [{"text": "🇫🇷 français", "callback_data": "fr"},
-        {"text": "🇪🇸 Español", "callback_data": "es"}]
-        ]}
-    system_send_message(chat_id, "Preferred language?", keyboard, 'Language selection menu')
-
-def TYPE_setting(update):
-    chat_id = update['callback_query']['from']['id']
-    # Create the keyboard
-    keyboard = {
-    "inline_keyboard": [
-        [{"text": mbti_types[bit], "callback_data": mbti_types[bit] + "_m"} for bit in range(row * 4, (row + 1) * 4) if bit < 16] for row in range((16 - 1) // 4 + 1)
-    ]}
-
-    system_send_message(chat_id, 'Choose your MBTI type', keyboard, 'MBTI type selection menu')
-
-def TYPES_setting(update):
-    chat_id = update['callback_query']['from']['id']
-    x = db.select_parameter("TYPES", f"chat_id = {chat_id}")['TYPES']
-    keyboard = get_mbti_types_keyboard(x)
-
-    system_send_message(chat_id, "Choose your preffered MBTI types", keyboard, 'MBTI preffered types selection menu')
-
-def change_type(update):
-    try:
-        chat_id = update['callback_query']['from']['id']
-        mbti_type = update['callback_query']['data'][:-2]
-    except KeyError:
-        print("Error: Invalid update format")
-        return
-    try:
-        index = mbti_indexes[mbti_type]
-        condition = f'chat_id = {chat_id}'
-        db.upsert_user_data({'TYPE': index}, condition)
-        system_delete_message(chat_id, update['callback_query']['message']['message_id'])
-        system_send_message(chat_id, "Your MBTI type set successfully")
-    except ValueError:
-        print("Error: Invalid MBTI type")
-        return
-
-def handle_region(update):
-    chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Send your location with Telegram:", None, "set location")
-    cache.hset('state', chat_id, 'region_collect')
-
-def handle_my_age(update):
-    chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Input your age:", None, "set age menu")
-    cache.hset('state', chat_id, 'age_collect')
-
-def handle_preferred_ages(update):
-    chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Please enter your preferred age range in the following format: 12-21", None, "set age interval menu")
-    cache.hset('state', chat_id, 'age_interval')
-
-def handle_unsupported_callback(update):
-    # Handle unsupported callback_data values
-    print(f"Unsupported callback_data: {update['callback_query']['data']}")
-
-def change_p_types(update):
-    chat_id = update['callback_query']['from']['id']
-    mbti_type = update['callback_query']['data'][:-2]
-    condition = f'chat_id = {chat_id}'
-    mask = 1 << mbti_indexes[mbti_type]
-    current_types = db.select_parameter('TYPES', condition)['TYPES']
-    new_types = (current_types & ~mask) | (mask & ~current_types)
-    db.upsert_user_data({'TYPES': new_types}, condition)
-    system_edit_types_message(chat_id, update['callback_query']['message']['message_id'], new_types)
-
-def handle_language(update):
-    chat_id = update['callback_query']['from']['id']
-    callback_data = update['callback_query']['data']
-    db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
-    system_send_message(chat_id, texts["set language"][callback_data], None, "language parameter")
-
-def handle_clall(update):
-    chat_id = update["callback_query"]["from"]["id"]
-    db.upsert_user_data({"TYPES": 0}, f"chat_id = {chat_id}")
-    system_edit_types_message(chat_id, update['callback_query']['message']['message_id'], 0)
+def next(update):
+    stop(update)
+    join(update)
 
 def settings(update):
     chat_id = update['message']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     keyboard = {
     "inline_keyboard": [
-        [{"text": "Language", "callback_data": "language"},],
-        [{"text": "Your MBTI Type", "callback_data": "TYPE"},
-        {"text": "Prefered MBTI Types", "callback_data": "TYPES"},],
-        [{"text": "Your Age", "callback_data": "my_age"},
-        {"text": "Prefered Age Interval", "callback_data": "prefered_ages"},],
-        [{"text": "Gender", "callback_data": "genders"},
-        {"text": "Region", "callback_data": "region"}]
+        [{"text": texts["settings"]["lang"][lang], "callback_data": "language"},
+         {"text": texts["settings"]["region"][lang], "callback_data": "region"}],
+        [{"text": texts["settings"]["type"][lang], "callback_data": "TYPE"},
+        {"text": texts["settings"]["types"][lang], "callback_data": "TYPES"},],
+        [{"text": texts["settings"]["age"][lang], "callback_data": "my_age"},
+        {"text": texts["settings"]["ages"][lang], "callback_data": "prefered_ages"},],
+        [{"text": texts["settings"]["sex"][lang], "callback_data": "sex"},
+        {"text": texts["settings"]["sexes"][lang], "callback_data": "sexes"}]
         ]}
-
-    system_send_message(chat_id, "Which one you would prefer to change?", keyboard, "Settings")
+    system_send_message(chat_id, texts["settings"]["header"][lang], keyboard, "Settings")
 
 # Can be 'age_collect', 'age_interval', 'region_collect'
 def state_handler(update, state):
@@ -294,7 +262,9 @@ def state_handler(update, state):
             system_send_message(chat_id, "invalid data", None, "age set error")
             return
         text = update['message']['text']
-        if text.isdigit() and int(text) < 100:
+        pattern = r"^(\d+)$"
+        match = re.match(pattern, text)
+        if match and int(text) < 100:
             if int(text) < 12:
                 system_send_message(chat_id, 'your age is not enough(', None, 'error setage message')
             else:
@@ -307,7 +277,7 @@ def state_handler(update, state):
             system_send_message(chat_id, "invalid data", None, "age set error")
             return
         text = update['message']['text']
-        pattern = r"^\d+-\d+$"
+        pattern = r"^(\d+)-(\d+)$"
         match = re.match(pattern, text)
         if match:
             age1 = int(match.group(1))
@@ -347,6 +317,111 @@ message_handlers = {
     'poll': send_poll
 }
 
+# ------- handling states -------
+
+def handle_region(update):
+    chat_id = update['callback_query']['from']['id']
+    system_send_message(chat_id, "Send your location with Telegram:", cancel_keyboard(chat_id, "state"), "set location")
+    cache.hset('state', chat_id, 'region_collect')
+
+def handle_my_age(update):
+    chat_id = update['callback_query']['from']['id']
+    system_send_message(chat_id, "Input your age:", cancel_keyboard(chat_id, "state"), "set age menu")
+    cache.hset('state', chat_id, 'age_collect')
+
+def handle_preferred_ages(update):
+    chat_id = update['callback_query']['from']['id']
+    system_send_message(chat_id, "Please enter your preferred age range in the following format: 12-21", cancel_keyboard(chat_id, "state"), "set age interval menu")
+    cache.hset('state', chat_id, 'age_interval')
+
+# ----------------------------  
+
+def handle_unsupported_callback(update):
+    # Handle unsupported callback_data values
+    print(f"Unsupported callback_data: {update['callback_query']['data']}")
+
+# ------- handling settings -------  
+
+def change_type(update):
+    try:
+        chat_id = update['callback_query']['from']['id']
+        mbti_type = update['callback_query']['data'][:-2]
+    except KeyError:
+        print("Error: Invalid update format")
+        return
+    try:
+        index = mbti_indexes[mbti_type]
+        condition = f'chat_id = {chat_id}'
+        db.upsert_user_data({'TYPE': index}, condition)
+        system_delete_message(chat_id, update['callback_query']['message']['message_id'])
+        system_send_message(chat_id, "Your MBTI type set successfully")
+    except ValueError:
+        print("Error: Invalid MBTI type")
+        return
+
+def change_p_types(update):
+    chat_id = update['callback_query']['from']['id']
+    mbti_type = update['callback_query']['data'][:-2]
+    condition = f'chat_id = {chat_id}'
+    mask = 1 << mbti_indexes[mbti_type]
+    current_types = db.select_parameter('TYPES', condition)['TYPES']
+    new_types = (current_types & ~mask) | (mask & ~current_types)
+    db.upsert_user_data({'TYPES': new_types}, condition)
+    system_edit_types_message(chat_id, update['callback_query']['message']['message_id'], new_types)
+
+def handle_language(update):
+    chat_id = update['callback_query']['from']['id']
+    callback_data = update['callback_query']['data']
+    db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
+    system_send_message(chat_id, texts["set language"][callback_data], None, "language parameter")
+
+def handle_clall(update):
+    chat_id = update["callback_query"]["from"]["id"]
+    db.upsert_user_data({"TYPES": 0}, f"chat_id = {chat_id}")
+    system_edit_types_message(chat_id, update['callback_query']['message']['message_id'], 0)
+
+def lang_setting(update):
+    chat_id = update['callback_query']['from']['id']
+    system_send_message(chat_id, "Preferred language?", lang_keyboard, 'Language selection menu')
+
+def TYPE_setting(update):
+    chat_id = update['callback_query']['from']['id']
+    # Create the keyboard
+    keyboard = {
+    "inline_keyboard": [
+        [{"text": mbti_types[bit], "callback_data": mbti_types[bit] + "_m"} for bit in range(row * 4, (row + 1) * 4) if bit < 16] for row in range((16 - 1) // 4 + 1)
+    ]}
+
+    system_send_message(chat_id, 'Choose your MBTI type', keyboard, 'MBTI type selection menu')
+
+def TYPES_setting(update):
+    chat_id = update['callback_query']['from']['id']
+    x = db.select_parameter("TYPES", f"chat_id = {chat_id}")['TYPES']
+    keyboard = get_mbti_types_keyboard(x)
+
+    system_send_message(chat_id, "Choose your preffered MBTI types", keyboard, 'MBTI preffered types selection menu')
+
+def handle_cancel_state(update):
+    chat_id = update['callback_query']['from']['id']
+    message_id = update['callback_query']['message']['message_id']
+    system_delete_message(chat_id, message_id)
+    if cache.hexists('state', chat_id):
+        lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+        cache.hdel('state', chat_id)
+        system_send_message(chat_id, texts["cancel_state"][lang], main_keyboard(chat_id), "state cancled message")
+
+def handle_cancel_waiting(update):
+    chat_id = update['callback_query']['from']['id']
+    message_id = update['callback_query']['message']['message_id']
+    system_delete_message(chat_id, message_id)
+    if cache.sismember('waiting_pool', chat_id):
+        lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+        cache.srem('waiting_pool', chat_id)
+        system_send_message(chat_id, texts["cancel_waiting"][lang], main_keyboard(chat_id), "waiting cancled message")
+    
+
+# ---------------------------- 
+
 callback_actions = {
     "language": lang_setting,
     "TYPE": TYPE_setting,
@@ -358,7 +433,9 @@ callback_actions = {
     "fr": handle_language,
     "ru": handle_language,
     "es": handle_language,
-    "clall": handle_clall
+    "clall": handle_clall,
+    "cancel_state" : handle_cancel_state,
+    "cancel_waiting" : handle_cancel_waiting
     }
 
 def callback_handler(update):
@@ -389,6 +466,7 @@ COMMANDS = {
     '/start': start,
     '/join': join,
     '/stop': stop,
+    '/next' : next,
     '/settings': settings,
     '/shareprofile': shareprofile,
     '/about': about
@@ -407,8 +485,9 @@ def update_handler(update):
                 pair = cache.hget('pairs', chat_id).decode()
                 send_message(pair, update)
         for keyword, handler in message_handlers.items():
-            if keyword in update['message']:
+            if keyword in update['message'] and cache.hexists('pairs', chat_id):
                 print(f"sending {keyword}")
+                pair = cache.hget('pairs', chat_id).decode()
                 handler(pair, update)     
     elif 'edited_message' in update:
         if 'text' in update['edited_message']:
@@ -420,13 +499,13 @@ def update_handler(update):
 
 def main():
     proccessed_offset = 0
+    get_updates_url = f"{API_LINK}/getUpdates"
     while True:
         try:
-            response = requests.get(GET_UPDATES_URL, params={'offset': proccessed_offset})
+            response = requests.get(get_updates_url, params={'offset': proccessed_offset})
             if response.ok:
                 updates = response.json()['result']
                 for update in updates:
-                    print(update)
                     update_handler(update)
                     proccessed_offset = max(proccessed_offset, update['update_id'] + 1)
             time.sleep(0.75)
@@ -435,7 +514,8 @@ def main():
             time.sleep(5)
 
 if __name__ ==  "__main__":
-    #matching_thread = threading.Thread(target=matching)
+    # matching_thread = threading.Thread(target=matching)
     # matching_thread.start()
     main()
-    #matching_thread.join()
+    # matching_thread.join()
+    db.close()
