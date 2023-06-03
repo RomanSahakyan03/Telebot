@@ -1,6 +1,5 @@
 import math
 import json
-import redis
 import requests
 import os
 from config import create_redis_client

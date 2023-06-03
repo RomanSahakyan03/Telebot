@@ -165,14 +165,30 @@ def matching_system():
         #checking gender
         # ...
 
-        system_delete_message(chat_id1, cache.hget("waiting_message", chat_id1))
-        system_delete_message(chat_id2, cache.hget("waiting_message", chat_id2))
+
+        lang1 = params1["language"]
+        lang2 = params2["language"]
+
+        text1 = f"{texts['matching']['partner found'][lang1]}\n"
+        text1 += f"{texts['matching']['age'][lang1]}{second_age}\n"
+        text1 += f"{texts['matching']['region'][lang1]}{from_coords_to_name(second_lat, second_lon)}\n"
+        text1 += f"{texts['matching']['type'][lang1]}{second_type}"
+        text1 = f"{texts['matching']['partner found'][lang1]}\n"
+
+        text2 = f"{texts['matching']['partner found'][lang2]}\n"
+        text2 += f"{texts['matching']['age'][lang2]}{first_age}\n"
+        text2 += f"{texts['matching']['region'][lang2]}{from_coords_to_name(first_lat, first_lon)}\n"
+        text2 += f"{texts['matching']['type'][lang2]}{first_type}"
+
+        system_delete_message(chat_id1, int(cache.hget("waiting_message", chat_id1)))
+        system_delete_message(chat_id2, int(cache.hget("waiting_message", chat_id2)))
         cache.srem("waiting_pool", chat_id1)
         cache.srem("waiting_pool", chat_id2)
         cache.hdel("waiting_message", chat_id1)
         cache.hdel("waiting_message", chat_id2)
-        system_send_message(chat_id1, "your partner has been found", {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
-        system_send_message(chat_id2, "your partner has been found", {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
+        system_send_message(chat_id1, text1, {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
+        system_send_message(chat_id2, text2, {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
+
         make_pair(chat_id1, chat_id2)
 
 
@@ -192,6 +208,11 @@ def join(update):
         preferred_ages = params["age_interval"]
         type = params["TYPE"]
         types = int(params["TYPES"])
+
+        # if no one selected <=> all types available
+        if int(types) == 0:
+            types = 65535 
+
         num_bits = 16
         types_list = [f"{mbti_types[bit]}" for bit in range(num_bits) if (types >> bit) & 1]
 
@@ -216,12 +237,18 @@ def join(update):
 # Define a function to handle the /start command
 def start(update):
     chat_id = update['message']['from']['id']
+    print(chat_id)
     if db.is_chat_id_exists(chat_id) is False:
         name = update['message']['from']['first_name']
         db.insert_user(chat_id)
         text = "Hey there, " + name + "! Welcome to TypeTalk, the anonymous chatbot based on MBTI personality types. " \
        "To get started, please choose your preferred language by selecting one of the options below:"
-        system_send_message(chat_id, text, lang_keyboard, "Start menu")
+        data = {
+            "chat_id" : chat_id,
+            "photo" : "AgACAgIAAxkBAAIMG2R669446fymMURznmwSEwwLxzBIAAKWzDEb9zTZS1nd7Nbv63VJAQADAgADeAADLwQ",
+            "caption" : text
+        }
+        send_request(data, "sendPhoto", f"Start menu opened for {chat_id}")
     else:
         join(update)
 
@@ -282,15 +309,16 @@ def state_handler(update, state):
         match = re.match(pattern, text)
         if match and int(text) < 100:
             if int(text) < 12:
-                system_send_message(chat_id, 'your age is not enough(', None, 'error setage message')
+                system_send_message(chat_id, texts["not enough age"][lang], None, 'error setage message')
             else:
+                cache.srem("age_collect", chat_id)
                 db.upsert_user_data({'age' : text}, condition)
-                system_send_message(chat_id, text["age set"][lang], None, 'setage')
+                system_send_message(chat_id, texts["age set"][lang], None, 'setage')
         else:
-            system_send_message(chat_id, 'this isn\'t look like age', None, 'error setage message')
+            system_send_message(chat_id, texts["invalid data"][lang], None, 'error setage message')
     elif state == 'age_interval':
         if "message" not in update or "text" not in update["message"]:
-            system_send_message(chat_id, "invalid data", None, "age set error")
+            system_send_message(chat_id, texts["invalid data"][lang], None, "age set error")
             return
         text = update['message']['text']
         pattern = r"^(\d+)-(\d+)$"
@@ -301,22 +329,24 @@ def state_handler(update, state):
             if age1 > age2:
                 age1, age2 = age2, age1
             if age1 <= 13:
-                system_send_message(chat_id, "Do I need to call the POLICE??!?!?!??!", None, "Pedophil error")
+                system_send_message(chat_id, texts["low age alert"][lang], None, "Pedophil error")
                 return
             db.upsert_user_data({'age_interval' : text}, condition)
-            system_send_message(chat_id, 'age set succesfully', None, 'setage interval')
+            cache.srem("age_interval", chat_id)
+            system_send_message(chat_id, texts["age set"][lang], None, 'setage interval')
         else:
-            system_send_message(chat_id, "invalid data", None, "age set error")
+            system_send_message(chat_id, texts["invalid data"][lang], None, "age set error")
             return
     elif state == 'region_collect':
         if "message" not in update or "location" not in update["message"]:
-            system_send_message(chat_id, "something gone wrong, try again!", None, "location data error")
+            system_send_message(chat_id, texts["invalid data"][lang], None, "location data error")
             return
         latitude = update['message']['location']['latitude']
         longitude = update['message']['location']['longitude']
         db.upsert_user_data({'region_lat' : latitude}, condition)
         db.upsert_user_data({'region_lon' : longitude}, condition)
-        system_send_message(chat_id, 'location set succesfully', None, 'coords')
+        cache.srem("region_collect", chat_id)
+        system_send_message(chat_id, texts["location set"][lang], None, 'coords')
 
 
     cache.hdel('state', chat_id)
@@ -338,6 +368,7 @@ message_handlers = {
 def handle_region(update):
     chat_id = update['callback_query']['from']['id']
     system_send_message(chat_id, "Send your location with Telegram:", cancel_keyboard(chat_id, "state"), "set location")
+    cache.sadd("region_collect", )
     cache.hset('state', chat_id, 'region_collect')
 
 def handle_my_age(update):
@@ -534,8 +565,8 @@ def main():
             time.sleep(5)
 
 if __name__ ==  "__main__":
-    # matching_thread = threading.Thread(target=matching_system)
-    # matching_thread.start()
+    matching_thread = threading.Thread(target=matching_system)
+    matching_thread.start()
     main()
-    # matching_thread.join()
+    matching_thread.join()
     db.close()

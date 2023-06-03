@@ -25,6 +25,38 @@
       "es" : "📖 Sobre el bot"
     }
   },
+  "matching" : {
+    "partner found" : {
+      "en" : "Your partner has been found\n\n",
+      "fr" : "Votre partenaire a été trouvé\n\n",
+      "ru" : "Ваш партнер найден\n\n",
+      "es" : "Su pareja ha sido encontrada\n\n"
+    },
+    "age" : {
+      "en" : "Age : ",
+      "fr" : "Âge  : ",
+      "ru" : "Возраст : ",
+      "es" : "Edad : "
+    },
+    "type" : {
+      "en" : "MBTI Type : ",
+      "fr" : "type MBTI: ",
+      "ru" : "Тип MBTI : ",
+      "es" : "tipo MBTI: "
+    },
+    "region" : {
+      "en" : "Region : ",
+      "fr" : "Région : ",
+      "ru" : "Регион : ",
+      "es" : "Región : "
+    }
+  },
+  "locaion set" : {
+    "en" : "Location set succesfully",
+    "fr" : "Emplacement défini avec succès.",
+    "ru" : "Местоположение успешно установлено",
+    "es" : "Ubicación establecida correctamente."
+  },
   "invalid data" : {
     "en" : "invalid data",
     "fr" : "données invalides",
@@ -37,13 +69,25 @@
     "ru" : "возраст успешно установлен",
     "es" : "edad establecida correctamente"
   },
-  "type setting" : {
+  "not enough age" : {
+    "en" : "your age is not enough(",
+    "fr" : "Vous n'avez pas l'âge requis(",
+    "ru" : "Вам недостаточно лет.(",
+    "es" : "No tienes la edad suficiente.("
+  },
+  "low age alert" : {
+    "en" : "Do I need to call the POLICE??!?!?!??!",
+    "fr" : "Dois-je appeler la POLICE ??!?!?!??!",
+    "ru" :  "Мне нужно вызвать ПОЛИЦИЮ??!?!?!??!",
+    "es" : "¿Debo llamar a la POLICÍA??!?!?!??!"
+  },
+  "type settings" : {
     "en" : "Choose your MBTI type", 
     "fr" : "Choisissez votre type MBTI", 
     "ru" : "Выберите свой тип MBTI.", 
     "es" : "Elige tu tipo de MBTI"  
   },
-  "types setting" : {
+  "types settings" : {
     "en" : "Choose MBTI types (If no selection, all types will be chosen)", 
     "fr" : "Choisissez les types MBTI (Si aucun choix n'est fait, tous les types seront sélectionnés)", 
     "ru" : "Выберите типы MBTI (Если ничего не выбрано, будут выбраны все типы)", 
@@ -68,10 +112,10 @@
     "es" : "🚫 Cancelar"
     },
     "do_not_join" : {
-      "en" : "🙏Please fill in all the settings to access the chat.",
-      "fr" : "🙏Veuillez remplir tous les paramètres pour accéder au chat.",
-      "ru" : "🙏Пожалуйста, заполните все настройки, чтобы получить доступ к чату.",
-      "es" : "🙏Por favor, completa todas las configuraciones para acceder al chat."
+      "en" : "🙏Please fill in all the settings to access the chat in /settings.",
+      "fr" : "🙏Veuillez remplir tous les paramètres pour accéder au chat dans /settings.",
+      "ru" : "🙏Пожалуйста, заполните все настройки, чтобы получить доступ к чату в /settings.",
+      "es" : "🙏Por favor, complete todas las configuraciones para acceder al chat en /settings."
     },
   "ended conversation" : {
     "en" : "👋 Conversation ended. Type /join to begin a new conversation.",
