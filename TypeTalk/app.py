@@ -8,9 +8,23 @@ from edit_data import *
 from send_data import *
 from utils import *
 from config import create_redis_client
+import os
+import copy
 
-db = BotDB("TypeTalk/userdata.db")
+# Get the absolute path of the current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the absolute texts path
+db_path = os.path.join(current_dir, 'userdata.db')
+
+db = BotDB(db_path)
 cache = create_redis_client()
+
+# Construct the absolute texts path
+texts_path = os.path.join(current_dir, 'typetalk_texts.json')
+
+with open(texts_path, 'r', encoding="UTF-8") as f:
+    texts = json.load(f)
 
 def system_send_message(receiver, text,reply_markup = None, handler = None):
     data = {
@@ -23,7 +37,7 @@ def system_send_message(receiver, text,reply_markup = None, handler = None):
     if handler is None:
         handler = f"{receiver} message sent"
 
-    content = send_request(data, "sendMessage", handler)
+    content = send_request(data, SEND_MESSAGE, handler)
 
     return content
 
@@ -72,19 +86,6 @@ def system_delete_message(receiver, message_id):
 
     return content
 
-def main_keyboard(chat_id):
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-    keyboard = {
-        "keyboard":
-            [[{"text": texts["main keyboard"]["joining"][lang]},
-            {"text": texts["main keyboard"]["settings"][lang]}],
-            [{"text": texts["main keyboard"]["about page"][lang]}]],
-
-        "resize_keyboard": True,
-        "one_time_keyboard" : True
-    }
-    return keyboard
-
 # cancel only "state" or "waiting"
 def cancel_keyboard(chat_id, option):
     cancel = "cancel_" + option
@@ -97,6 +98,7 @@ def cancel_keyboard(chat_id, option):
 
 def shareprofile(update):
     chat_id = update['message']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     if cache.hexists('pairs', chat_id):
         if 'username' in update['message']['from']:
             username = update['message']['from']['username']
@@ -104,7 +106,7 @@ def shareprofile(update):
             text = "Here is the @" + username + '.'
             system_send_message(receiver, text, None,'Shareprofile message')
         else:
-            system_send_message(chat_id, "You have no username to share....", None, "NoShareprofile message")
+            system_send_message(chat_id, texts["no username"][lang], None, "NoShareprofile message")
 
 def matching_system():
     while True:
@@ -138,9 +140,9 @@ def matching_system():
         print("types matching passed")
 
         first_age = params1["age"]
-        first_ages = params1["age_interval"]
+        first_ages = params1["prefarred_ages"]
         second_age = params2["age"]
-        second_ages = params2["age_interval"]
+        second_ages = params2["prefarred_ages"]
         second_ages = second_ages.split('-')
 
         if not (int(second_ages[0]) <= int(first_age) <= int(second_ages[1])):
@@ -162,32 +164,38 @@ def matching_system():
 
         print("region matching passed")
 
-        #checking gender
-        # ...
+        sex1 = params1["sex"]
+        sex2 = params1["sex"]
+        sexes1 = params1["sexes"]
+        sexes2 = params1["sexes"]
 
+        if sexes1 != 2 and ((sex1 ^ 1) != sexes2):
+            continue
+
+        if sexes2 != 2 and ((sex2 ^ 1) != sexes1):
+            continue
 
         lang1 = params1["language"]
         lang2 = params2["language"]
 
         text1 = f"{texts['matching']['partner found'][lang1]}\n"
         text1 += f"{texts['matching']['age'][lang1]}{second_age}\n"
-        text1 += f"{texts['matching']['region'][lang1]}{from_coords_to_name(second_lat, second_lon)}\n"
-        text1 += f"{texts['matching']['type'][lang1]}{second_type}"
-        text1 = f"{texts['matching']['partner found'][lang1]}\n"
+        text1 += f"{texts['matching']['region'][lang1]}{from_coords_to_name(second_lat, second_lon, lang1)}\n"
+        text1 += f"{texts['matching']['type'][lang1]}{mbti_types[second_type]}\n"
+        text1 += f"{texts['matching']['sex'][lang1]}{texts[sexes[sex2]][lang1]}"
 
         text2 = f"{texts['matching']['partner found'][lang2]}\n"
         text2 += f"{texts['matching']['age'][lang2]}{first_age}\n"
-        text2 += f"{texts['matching']['region'][lang2]}{from_coords_to_name(first_lat, first_lon)}\n"
-        text2 += f"{texts['matching']['type'][lang2]}{first_type}"
+        text2 += f"{texts['matching']['region'][lang2]}{from_coords_to_name(first_lat, first_lon, lang2)}\n"
+        text2 += f"{texts['matching']['type'][lang2]}{mbti_types[first_type]}\n"
+        text2 += f"{texts['matching']['sex'][lang2]}{texts[sexes[sex1]][lang2]}"
 
         system_delete_message(chat_id1, int(cache.hget("waiting_message", chat_id1)))
         system_delete_message(chat_id2, int(cache.hget("waiting_message", chat_id2)))
-        cache.srem("waiting_pool", chat_id1)
-        cache.srem("waiting_pool", chat_id2)
-        cache.hdel("waiting_message", chat_id1)
-        cache.hdel("waiting_message", chat_id2)
-        system_send_message(chat_id1, text1, {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
-        system_send_message(chat_id2, text2, {"reply_markup" : {"remove_keyboard" : True}}, "partner message")
+        cache.srem("waiting_pool", chat_id1, chat_id2)
+        cache.hdel("waiting_message", chat_id1, chat_id2)
+        system_send_message(chat_id1, text1, {"remove_keyboard" : True}, "partner message")
+        system_send_message(chat_id2, text2, {"remove_keyboard" : True}, "partner message")
 
         make_pair(chat_id1, chat_id2)
 
@@ -203,26 +211,24 @@ def join(update):
     lang = params["language"]
     if db.check_all_columns_filled(chat_id):
         lat, lon = params["region_lat"], params["region_lon"]
-        name = from_coords_to_name(lat, lon)
-        age = params["age"]
-        preferred_ages = params["age_interval"]
-        type = params["TYPE"]
-        types = int(params["TYPES"])
+        name = from_coords_to_name(lat, lon, lang)
+        preferred_ages = params["prefarred_ages"]
+        types = params["TYPES"]
+        sex_index = params["sexes"]
 
         # if no one selected <=> all types available
-        if int(types) == 0:
+        if types == 0:
             types = 65535 
 
         num_bits = 16
         types_list = [f"{mbti_types[bit]}" for bit in range(num_bits) if (types >> bit) & 1]
 
-        print(types_list)
-        text = f"{texts['join']['first_part'][lang]}\n"
-        text += f"{texts['join']['age'][lang]}{age}\n"
-        text += f"{texts['join']['prefarred_ages'][lang]}{preferred_ages}\n"
-        text += f"{texts['join']['region'][lang]}{name}\n"
-        text += f"{texts['join']['type'][lang]}{mbti_types[type]}\n"
-        text += f"{texts['join']['types'][lang]}{', '.join(types_list)}"
+
+        text = f"{texts['join'][lang]}\n"
+        text += f"{texts['prefarred_ages'][lang]}{preferred_ages}\n"
+        text += f"{texts['region'][lang]}{name}\n"
+        text += f"{texts['TYPES'][lang]}{', '.join(types_list)}\n"
+        text += f"{texts['sexes'][lang]}{texts[sexes[sex_index]][lang]}"
         keyboard = cancel_keyboard(chat_id, "waiting")
 
         # Send the message
@@ -241,12 +247,13 @@ def start(update):
     if db.is_chat_id_exists(chat_id) is False:
         name = update['message']['from']['first_name']
         db.insert_user(chat_id)
-        text = "Hey there, " + name + "! Welcome to TypeTalk, the anonymous chatbot based on MBTI personality types. " \
+        text = f"Hey there, {name}! Welcome to TypeTalk, the anonymous chatbot based on MBTI personality types. " \
        "To get started, please choose your preferred language by selecting one of the options below:"
         data = {
             "chat_id" : chat_id,
             "photo" : "AgACAgIAAxkBAAIMG2R669446fymMURznmwSEwwLxzBIAAKWzDEb9zTZS1nd7Nbv63VJAQADAgADeAADLwQ",
-            "caption" : text
+            "caption" : text,
+            "reply_markup" : lang_keyboard_with_settings
         }
         send_request(data, "sendPhoto", f"Start menu opened for {chat_id}")
     else:
@@ -260,7 +267,7 @@ def about(update):
         "chat_id" : chat_id,
         "photo" : "https://i.pinimg.com/474x/a1/2b/8e/a12b8ebbfa769903ac48ba27c6519e9d.jpg",
         "caption" : texts["about page"][lang],
-        "reply_markup" : json.dumps(main_keyboard(chat_id))
+        "reply_markup" : main_keyboard(lang)
     }
 
     send_request(data, "sendPhoto", f"About menu opened for {chat_id}")
@@ -271,8 +278,20 @@ def stop(update):
         chat_id2 = cache.hget('pairs', chat_id1).decode()
         lang1 = db.select_parameter("language", f"chat_id = {chat_id1}")["language"]
         lang2 = db.select_parameter("language", f"chat_id = {chat_id2}")["language"]
-        system_send_message(chat_id1, texts["ended conversation"][lang1], main_keyboard(chat_id1))
-        system_send_message(chat_id2, texts["ended conversation"][lang2], main_keyboard(chat_id2))
+        
+        system_send_message(chat_id1, texts["ended conversation"][lang1], main_keyboard(lang1))
+        system_send_message(chat_id2, texts["ended conversation"][lang2], main_keyboard(lang2))
+
+        rate_keyboard_copy = copy.deepcopy(rate_keyboard)
+
+        rate_keyboard_copy["inline_keyboard"][0][0]["callback_data"] = f"like_{chat_id2}"
+        rate_keyboard_copy["inline_keyboard"][0][1]["callback_data"] = f"dislike_{chat_id2}"
+        system_send_message(chat_id1, texts["rate_op"][lang1], rate_keyboard_copy)
+
+        rate_keyboard_copy["inline_keyboard"][0][0]["callback_data"] = f"like_{chat_id1}"
+        rate_keyboard_copy["inline_keyboard"][0][1]["callback_data"] = f"dislike_{chat_id1}"
+        system_send_message(chat_id2, texts["rate_op"][lang2], rate_keyboard_copy)
+
         del_pair(chat_id1)
 
 def next(update):
@@ -280,20 +299,54 @@ def next(update):
     join(update)
 
 def settings(update):
-    chat_id = update['message']['from']['id']
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    
+    chat_id = update['message']['from']['id'] if 'message' in update else update['callback_query']['from']['id']
+    params = db.select_parameter("*", f"chat_id = {chat_id}")
+    lang = params["language"]
     keyboard = {
     "inline_keyboard": [
-        [{"text": texts["settings"]["lang"][lang], "callback_data": "language"},
-         {"text": texts["settings"]["region"][lang], "callback_data": "region"}],
-        [{"text": texts["settings"]["type"][lang], "callback_data": "TYPE"},
-        {"text": texts["settings"]["types"][lang], "callback_data": "TYPES"},],
-        [{"text": texts["settings"]["age"][lang], "callback_data": "my_age"},
-        {"text": texts["settings"]["ages"][lang], "callback_data": "prefered_ages"},],
-        [{"text": texts["settings"]["sex"][lang], "callback_data": "sex"},
-        {"text": texts["settings"]["sexes"][lang], "callback_data": "sexes"}]
+        [{"text": texts["settings"]["menu_lang"][lang], "callback_data": "language"},
+         {"text": texts["settings"]["menu_region"][lang], "callback_data": "region"}],
+        [{"text": texts["settings"]["menu_type"][lang], "callback_data": "TYPE"},
+        {"text": texts["settings"]["menu_types"][lang], "callback_data": "TYPES"},],
+        [{"text": texts["settings"]["menu_age"][lang], "callback_data": "my_age"},
+        {"text": texts["settings"]["menu_ages"][lang], "callback_data": "prefered_ages"},],
+        [{"text": texts["settings"]["menu_sex"][lang], "callback_data": "sex"},
+        {"text": texts["settings"]["menu_sexes"][lang], "callback_data": "sexes"}]
         ]}
-    system_send_message(chat_id, texts["settings"]["header"][lang], keyboard, "Settings")
+    
+    text = f"{texts['settings']['header'][lang]}\n"
+    for key, value in params.items():
+        if key not in ["id", "chat_id"]:
+            if value != None or key in ["region_lat", "region_lon"] :
+                if key == "region_lat":
+                    lat = value
+                elif key == "region_lon":
+                    region = from_coords_to_name(lat, value, lang)
+                    if region:
+                        text += f"{texts['region'][lang]}{region}\n"
+                    else:
+                        text += f"{texts['region'][lang]}{texts['empty'][lang]}\n"
+                elif key == "TYPE":
+                    text += f"{texts[key][lang]}{mbti_types[value]}\n"
+                elif key == "TYPES":
+                    if value == 0:
+                        value = 65535 
+                    num_bits = 16
+                    types_list = [f"{mbti_types[bit]}" for bit in range(num_bits) if (value >> bit) & 1]
+                    text += f"{texts[key][lang]}{', '.join(types_list)}\n"
+                elif key == "sex" or key == "sexes":
+                    text += f"{texts[key][lang]}{texts[sexes[value]][lang]}\n"
+                else:
+                    if key == "rate" and value == round(value):
+                        value = round(value) 
+
+                    text += f"{texts[key][lang]}{value}\n"
+            else:
+                text += f"{texts[key][lang]}{texts['empty'][lang]}\n"
+                
+
+    system_send_message(chat_id, text, keyboard, "Settings")
 
 # Can be 'age_collect', 'age_interval', 'region_collect'
 def state_handler(update, state):
@@ -313,6 +366,8 @@ def state_handler(update, state):
             else:
                 cache.srem("age_collect", chat_id)
                 db.upsert_user_data({'age' : text}, condition)
+                system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
+                cache.hdel("waiting_message", chat_id)
                 system_send_message(chat_id, texts["age set"][lang], None, 'setage')
         else:
             system_send_message(chat_id, texts["invalid data"][lang], None, 'error setage message')
@@ -331,8 +386,10 @@ def state_handler(update, state):
             if age1 <= 13:
                 system_send_message(chat_id, texts["low age alert"][lang], None, "Pedophil error")
                 return
-            db.upsert_user_data({'age_interval' : text}, condition)
+            db.upsert_user_data({'prefarred_ages' : text}, condition)
             cache.srem("age_interval", chat_id)
+            system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
+            cache.hdel("waiting_message", chat_id)
             system_send_message(chat_id, texts["age set"][lang], None, 'setage interval')
         else:
             system_send_message(chat_id, texts["invalid data"][lang], None, "age set error")
@@ -346,12 +403,15 @@ def state_handler(update, state):
         db.upsert_user_data({'region_lat' : latitude}, condition)
         db.upsert_user_data({'region_lon' : longitude}, condition)
         cache.srem("region_collect", chat_id)
+        system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
+        cache.hdel("waiting_message", chat_id)
         system_send_message(chat_id, texts["location set"][lang], None, 'coords')
 
 
     cache.hdel('state', chat_id)
 
 message_handlers = {
+    'text' : send_message,
     'photo': send_photo,
     'voice': send_audio,
     'video': send_video,
@@ -367,18 +427,24 @@ message_handlers = {
 
 def handle_region(update):
     chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Send your location with Telegram:", cancel_keyboard(chat_id, "state"), "set location")
-    cache.sadd("region_collect", )
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    content = system_send_message(chat_id, texts["location handle"][lang], cancel_keyboard(chat_id, "state"), "set location")
+    cache.hset("waiting_message", chat_id, content["message_id"])
+    cache.sadd("region_collect", chat_id)
     cache.hset('state', chat_id, 'region_collect')
 
 def handle_my_age(update):
     chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Input your age:", cancel_keyboard(chat_id, "state"), "set age menu")
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    content = system_send_message(chat_id, texts["age handle"][lang], cancel_keyboard(chat_id, "state"), "set age menu")
+    cache.hset("waiting_message", chat_id, content["message_id"])
     cache.hset('state', chat_id, 'age_collect')
 
 def handle_preferred_ages(update):
     chat_id = update['callback_query']['from']['id']
-    system_send_message(chat_id, "Please enter your preferred age range in the following format: 12-21", cancel_keyboard(chat_id, "state"), "set age interval menu")
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    content = system_send_message(chat_id, texts["ages handle"][lang], cancel_keyboard(chat_id, "state"), "set age interval menu")
+    cache.hset("waiting_message", chat_id, content["message_id"])
     cache.hset('state', chat_id, 'age_interval')
 
 # ----------------------------  
@@ -390,21 +456,15 @@ def handle_unsupported_callback(update):
 # ------- handling settings -------  
 
 def change_type(update):
-    try:
-        chat_id = update['callback_query']['from']['id']
-        mbti_type = update['callback_query']['data'][:-2]
-    except KeyError:
-        print("Error: Invalid update format")
-        return
-    try:
-        index = mbti_indexes[mbti_type]
-        condition = f'chat_id = {chat_id}'
-        db.upsert_user_data({'TYPE': index}, condition)
-        system_delete_message(chat_id, update['callback_query']['message']['message_id'])
-        system_send_message(chat_id, "Your MBTI type set successfully")
-    except ValueError:
-        print("Error: Invalid MBTI type")
-        return
+    chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    mbti_type = update['callback_query']['data'][:-2]
+    index = mbti_indexes[mbti_type]
+    condition = f'chat_id = {chat_id}'
+
+    db.upsert_user_data({'TYPE': index}, condition)
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
+    system_send_message(chat_id, texts["type set"][lang])
 
 def change_p_types(update):
     chat_id = update['callback_query']['from']['id']
@@ -416,12 +476,42 @@ def change_p_types(update):
     db.upsert_user_data({'TYPES': new_types}, condition)
     system_edit_types_message(chat_id, update['callback_query']['message']['message_id'], new_types)
 
+def change_sex(update):
+    chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    sex = update['callback_query']['data'][:-6]
+    condition = f'chat_id = {chat_id}'
+    sex_num = sexes.index(sex)
+    
+    db.upsert_user_data({'sex': sex_num}, condition)
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
+    system_send_message(chat_id, texts["sex set"][lang])
+
+def change_p_sex(update):
+    chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    psex = update['callback_query']['data'][:-13]
+    condition = f'chat_id = {chat_id}'
+    sexes_num = sexes.index(psex)
+
+    db.upsert_user_data({'sexes': sexes_num}, condition)
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
+    system_send_message(chat_id, texts["sexes set"][lang])
+
 def handle_language(update):
     chat_id = update['callback_query']['from']['id']
     callback_data = update['callback_query']['data']
     system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
-    system_send_message(chat_id, texts["set language"][callback_data], None, "language parameter")
+
+def handle_language_with_settings(update):
+    chat_id = update['callback_query']['from']['id']
+    callback_data = update['callback_query']['data'][:2]
+    print(callback_data)
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
+    db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
+    system_send_message(chat_id, texts["set language"][callback_data], main_keyboard(callback_data), "language parameter _with_settings")
+    settings(update)
 
 def handle_clall(update):
     chat_id = update["callback_query"]["from"]["id"]
@@ -430,6 +520,7 @@ def handle_clall(update):
 
 def lang_setting(update):
     chat_id = update['callback_query']['from']['id']
+    # system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     system_send_message(chat_id, texts["lang settings"][lang], lang_keyboard, 'Language selection menu')
 
@@ -452,6 +543,19 @@ def TYPES_setting(update):
 
     system_send_message(chat_id, texts["types settings"][lang], keyboard, 'MBTI preffered types selection menu')
 
+
+def handle_my_sex(update):
+    chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+
+    system_send_message(chat_id, texts["sex settings"][lang], sex_keyboard(lang), "set sex") 
+
+def handle_preferred_sexes(update):
+    chat_id = update['callback_query']['from']['id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    system_send_message(chat_id, texts["sexes settings"][lang], preferred_sexes_keyboard(lang), "set preferred sexes")
+
+
 def handle_cancel_state(update):
     chat_id = update['callback_query']['from']['id']
     message_id = update['callback_query']['message']['message_id']
@@ -459,7 +563,7 @@ def handle_cancel_state(update):
     if cache.hexists('state', chat_id):
         lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
         cache.hdel('state', chat_id)
-        system_send_message(chat_id, texts["cancel_state"][lang], main_keyboard(chat_id), "state cancled message")
+        system_send_message(chat_id, texts["cancel_state"][lang], main_keyboard(lang), "state cancled message")
 
 def handle_cancel_waiting(update):
     chat_id = update['callback_query']['from']['id']
@@ -468,10 +572,35 @@ def handle_cancel_waiting(update):
     if cache.sismember('waiting_pool', chat_id):
         lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
         cache.srem('waiting_pool', chat_id)
-        system_send_message(chat_id, texts["cancel_waiting"][lang], main_keyboard(chat_id), "waiting cancled message")
+        cache.hdel("waiting_message", chat_id)
+        system_send_message(chat_id, texts["cancel_waiting"][lang], main_keyboard(lang), "waiting cancled message")
     
 
 # ---------------------------- 
+
+def like(update):
+    callback_data = update['callback_query']['data']
+    match = re.match(r'like_(\d+)', callback_data)
+    print(match)
+    chat_id1 = update['callback_query']['from']['id']
+    chat_id2 = match.group(1)
+    rating = db.select_parameter("rate", f"chat_id = {chat_id2}")["rate"]
+    lang = db.select_parameter("language", f"chat_id = {chat_id2}")["language"]
+    new_rating = min(rating + 1, 50)
+    db.upsert_user_data({"rate" : new_rating}, f"chat_id = {chat_id2}")
+    system_edit_message(chat_id1, update['callback_query']['message']['message_id'], texts["tanks_rating"][lang], None, "rating")
+
+def dislike(update):
+    callback_data = update['callback_query']['data']
+    match = re.match(r'dislike_(\d+)', callback_data)
+    print(match) 
+    chat_id1 = update['callback_query']['from']['id']
+    chat_id2 = match.group(1)
+    rating = db.select_parameter("rate", f"chat_id = {chat_id2}")["rate"]
+    lang = db.select_parameter("language", f"chat_id = {chat_id2}")["language"]
+    new_rating = max(rating - 1, 0)
+    db.upsert_user_data({"rate" : new_rating}, f"chat_id = {chat_id2}")
+    system_edit_message(chat_id1, update['callback_query']['message']['message_id'], texts["tanks_rating"][lang], None, "rating")
 
 callback_actions = {
     "language": lang_setting,
@@ -480,13 +609,19 @@ callback_actions = {
     "region": handle_region,
     "my_age": handle_my_age,
     "prefered_ages": handle_preferred_ages,
+    "sex" : handle_my_sex,
+    "sexes" : handle_preferred_sexes,
     "en": handle_language,
     "fr": handle_language,
     "ru": handle_language,
     "es": handle_language,
+    "en_with_settings": handle_language_with_settings,
+    "fr_with_settings": handle_language_with_settings,
+    "ru_with_settings": handle_language_with_settings,
+    "es_with_settings": handle_language_with_settings,
     "clall": handle_clall,
     "cancel_state" : handle_cancel_state,
-    "cancel_waiting" : handle_cancel_waiting
+    "cancel_waiting" : handle_cancel_waiting,
     }
 
 def callback_handler(update):
@@ -497,8 +632,15 @@ def callback_handler(update):
         change_type(update)
     elif callback_data.endswith('_p'):
         change_p_types(update)
+    elif callback_data.endswith('_mysex'):
+        change_sex(update)
+    elif callback_data.endswith('_preferredsex'):
+        change_p_sex(update)
+    elif re.match(r'like_(\d+)', callback_data):
+        like(update)
+    elif re.match(r'dislike_(\d+)', callback_data):
+        dislike(update)
     else:
-        # Handle unsupported callback_data values
         handle_unsupported_callback(update)
 
 COMMANDS = {
@@ -532,13 +674,11 @@ def update_handler(update):
             text = update['message']['text']
             if text in COMMANDS:
                 COMMANDS[text](update)
-            elif cache.hexists('pairs', chat_id):
-                pair = cache.hget('pairs', chat_id).decode()
-                send_message(pair, update)
+                return
         for keyword, handler in message_handlers.items():
             if keyword in update['message'] and cache.hexists('pairs', chat_id):
-                print(f"sending {keyword}")
                 pair = cache.hget('pairs', chat_id).decode()
+                print(f"sending {keyword} from {chat_id} to {pair}.")
                 handler(pair, update)     
     elif 'edited_message' in update:
         if 'text' in update['edited_message']:
