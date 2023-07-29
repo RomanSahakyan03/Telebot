@@ -1,30 +1,48 @@
 import requests
 import os
+import json
 from config import create_redis_client
+from db import BotDB
+from utils import send_request
 
+# Get the absolute path of the current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the absolute texts path
+db_path = os.path.join(current_dir, 'userdata.db')
+
+db = BotDB(db_path)
 cache = create_redis_client()
+
+# Construct the absolute texts path
+texts_path = os.path.join(current_dir, 'typetalk_texts.json')
+
+with open(texts_path, 'r', encoding="UTF-8") as f:
+    texts = json.load(f)
+
+
 telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
-API_LINK = f"https://api.telegram.org/bot{telegram_token}"
-SEND_MESSAGE_URL = f"{API_LINK}/sendMessage"
-SEND_PHOTO_URL = f"{API_LINK}/sendPhoto"
-SEND_AUDIO_URL = f"{API_LINK}/sendAudio"
-SEND_DOCUMENT_URL = f"{API_LINK}/sendDocument"
-SEND_VIDEO_URL = f"{API_LINK}/sendVideo"
-SEND_ANIMATION_URL = f"{API_LINK}/sendAnimation"
-SEND_LOCATION_URL = f"{API_LINK}/sendLocation"
-SEND_VIDEONOTE_URL = f"{API_LINK}/sendVideoNote"
-SEND_STICKER_URL = f"{API_LINK}/sendSticker"
-SEND_POLL_URL = f"{API_LINK}/sendPoll"
+SEND_MESSAGE = "sendMessage"
+SEND_PHOTO = "sendPhoto"
+SEND_AUDIO = "sendAudio"
+SEND_DOCUMENT = "sendDocument"
+SEND_VIDEO = "sendVideo"
+SEND_ANIMATION = "sendAnimation"
+SEND_LOCATION = "sendLocation"
+SEND_VIDEONOTE = "sendVideoNote"
+SEND_STICKER = "sendSticker"
+SEND_POLL = "sendPoll"
 
 def cache_message_ids(receiver, update, response_data):
     chat_id = update['message']['from']['id']
     message_id1 = update['message']['message_id']
-    message_id2 = response_data['result']['message_id']
-    cache.hset(str(receiver), message_id1, message_id2)
-    cache.hset(str(chat_id), message_id2, message_id1)
+    message_id2 = response_data['message_id']
+    cache.hset(receiver, message_id1, message_id2)
+    cache.hset(chat_id, message_id2, message_id1)
 
 
 def send_message(receiver, update):
+    chat_id = update['message']['from']['id']
     text = update['message']['text']
     data = {
             "chat_id": receiver,
@@ -32,40 +50,41 @@ def send_message(receiver, update):
         }
     if "reply_to_message" in update["message"]:
         message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+        if cache.hexists(receiver, message_id):
+            data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
         
-    response = requests.post(SEND_MESSAGE_URL, json=data)
-    chat_id = update['message']['from']['id']
-    if response.ok:
-        print(f"message sent successfully from {chat_id} to {receiver}")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
-    else:
-        print(f"failed to send message from {chat_id} to {receiver}")
+    message = send_request(data, SEND_MESSAGE, f"message sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)
 
 def send_photo(receiver, update): 
-    photo = update["message"]["photo"][-1]["file_id"]
-    data = {
-        "chat_id" : receiver,
-        "photo" : photo,
-    }
-    if "caption" in update["message"]:
-        data["caption"] = update["message"]["caption"]
-    if "reply_to_message" in update["message"]:
-        message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
-    
-    response = requests.post(SEND_PHOTO_URL, json=data)
-    if response.ok:
-        print(f"Photo sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
+    chat_id = update['message']['from']['id']
+    info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
+    sender_rating = info["rate"]
+    lang = info["language"]
+    if sender_rating > 2.0:
+        photo = update["message"]["photo"][-1]["file_id"]
+        data = {
+            "chat_id" : receiver,
+            "photo" : photo,
+        }
+        if "caption" in update["message"]:
+            data["caption"] = update["message"]["caption"]
+        if "reply_to_message" in update["message"]:
+            message_id = update["message"]["reply_to_message"]["message_id"]
+            if cache.hexists(receiver, message_id):
+                data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
+        
+        message = send_request(data, SEND_PHOTO, f"Photo sent from {chat_id} to {receiver}")
+        cache_message_ids(receiver, update, message)
     else:
-        print(f"Failed to send {receiver} Photo message.")
+        data = {
+            "chat_id": chat_id,
+            "text": texts["not kenough rating"][lang]  # "your rating now is lower than 2, grow it up to be allowed to send this message type" 
+        }
+        send_request(data, "sendMessage")
 
 def send_audio(receiver, update):
+    chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
         "audio" : update["message"]["voice"]["file_id"]
@@ -73,18 +92,14 @@ def send_audio(receiver, update):
 
     if "reply_to_message" in update["message"]:
         message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+        if cache.hexists(receiver, message_id):
+            data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
     
-    response = requests.post(SEND_AUDIO_URL, json=data)
-    if response.ok:
-        print(f"Audio sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
-    else:
-        print(f"Failed to send {receiver} Audio message.")
+    message = send_request(data, SEND_AUDIO, f"Audio sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)
 
 def send_document(receiver, update):
+    chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
         "document" : update["message"]["document"]["file_id"],
@@ -93,39 +108,42 @@ def send_document(receiver, update):
         data["caption"] = update["message"]["caption"]
     if "reply_to_message" in update["message"]:
         message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
-    
-    response = requests.post(SEND_DOCUMENT_URL, json=data)
-    if response.ok:
-        print(f"Document sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
-    else:
-        print(f"Failed to send {receiver} Document message.")
+        if cache.hexists(receiver, message_id):
+            data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
+    message = send_request(data, SEND_DOCUMENT, f"Document sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)
 
 def send_video(receiver, update):
-    video = update["message"]["video"]["file_id"]
-    data = {
-        "chat_id" : receiver,
-        "video" : video,
-    }
-    if "caption" in update["message"]:
-        data["caption"] = update["message"]["caption"]
-    if "reply_to_message" in update["message"]:
-        message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+    chat_id = update['message']['from']['id']
+    info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
+    sender_rating = info["rate"]
+    lang = info["language"]
+    if sender_rating > 2.0:
+        video = update["message"]["video"]["file_id"]
+        data = {
+            "chat_id" : receiver,
+            "video" : video,
+        }
+        if "caption" in update["message"]:
+            data["caption"] = update["message"]["caption"]
+        if "reply_to_message" in update["message"]:
+            message_id = update["message"]["reply_to_message"]["message_id"]
+            if cache.hexists(receiver, message_id):
+                data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-    response = requests.post(SEND_VIDEO_URL, json=data)
-    if response.ok:
-        print(f"Video sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
+        message = send_request(data, SEND_VIDEO, f"Video sent from {chat_id} to {receiver}")
+        cache_message_ids(receiver, update, message)
     else:
-        print(f"Failed to send {receiver} Video message.")   
+        data = {
+            "chat_id": chat_id,
+            # "text": #"your rating now is lower than 2, grow it up to be allowed to send this message type", 
+            "text" : texts["not kenough rating"][lang]
+        }
+        send_request(data, "sendMessage")
+
 
 def send_animation(receiver, update):
+    chat_id = update['message']['from']['id']
     animation = update["message"]["animation"]["file_id"]
     data = {
         "chat_id" : receiver,
@@ -135,18 +153,14 @@ def send_animation(receiver, update):
         data["caption"] = update["message"]["caption"]
     if "reply_to_message" in update["message"]:
         message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+        if cache.hexists(receiver, message_id):
+            data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-    response = requests.post(SEND_ANIMATION_URL, json=data)
-    if response.ok:
-        print(f"Animation sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
-    else:
-        print(f"Failed to send {receiver} Animation message.")
+    message = send_request(data, SEND_ANIMATION, f"Animation sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)
 
 def send_location(receiver, update):
+    chat_id = update['message']['from']['id']
     latitude = update['message']['location']['latitude']
     longitude = update['message']['location']['longitude']
     data = {
@@ -156,55 +170,54 @@ def send_location(receiver, update):
     }
     if "reply_to_message" in update["message"]:
         message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+        if cache.hexists(receiver, message_id):
+            data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-    response = requests.post(SEND_LOCATION_URL, json=data)
-    if response.ok:
-        print(f"Location sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
-    else:
-        print(f"Failed to send {receiver} Location message.")
+    message = send_request(data, SEND_LOCATION, f"Location sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)
     
 def send_video_note(receiver, update):
-    video_note = update["message"]["video_note"]["file_id"]
-    data = {
-        "chat_id" : receiver,
-        "video_note" : video_note,
-    }
-    if "reply_to_message" in update["message"]:
-        message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+    chat_id = update['message']['from']['id']
+    info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
+    sender_rating = info["rate"]
+    lang = info["language"]
+    if sender_rating > 2.0:
+        video_note = update["message"]["video_note"]["file_id"]
+        data = {
+            "chat_id" : receiver,
+            "video_note" : video_note,
+        }
+        if "reply_to_message" in update["message"]:
+            message_id = update["message"]["reply_to_message"]["message_id"]
+            if cache.hexists(receiver, message_id):
+                data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-    response = requests.post(SEND_VIDEONOTE_URL, json=data)
-    if response.ok:
-        print(f"VideoNote sent to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
+        message = send_request(data, SEND_VIDEONOTE, f"Video Note sent from {chat_id} to {receiver}")
+        cache_message_ids(receiver, update, message)
     else:
-        print(f"Failed to send {receiver} VideoNote message.")
+        data = {
+            "chat_id": chat_id,
+            # "text": , # texts["not kenough rating"]
+            "text": texts["not kenough rating"][lang]
+        }
+        send_request(data, "sendMessage")
 
 def send_sticker(receiver, update):
+    chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
         "sticker" : update["message"]["sticker"]["file_id"]
     }
     if "reply_to_message" in update["message"]:
         message_id = update["message"]["reply_to_message"]["message_id"]
-        if cache.hexists(str(receiver), message_id):
-            data["reply_to_message_id"] = cache.hget(str(receiver), message_id).decode()
+        if cache.hexists(receiver, message_id):
+            data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
             
-    response = requests.post(SEND_STICKER_URL, json=data)
-    if response.ok:
-        print(f"Stiker sent from to {receiver} successfully.")
-        response_data = response.json()
-        cache_message_ids(receiver, update, response_data)
-    else:
-        print(f"Failed to send {receiver} Sticker message.")
+    message = send_request(data, SEND_STICKER, f"Sticker sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)
 
 def send_poll(receiver, update):
+    chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
         "question" : update["message"]["poll"]["question"],
@@ -212,8 +225,6 @@ def send_poll(receiver, update):
         "is_anonymous" : True,
         "allows_multiple_answers" : update["message"]["poll"]["allows_multiple_answers"],
     }
-    response = requests.post(SEND_POLL_URL, json=data)
-    if response.ok:
-        print(f"Poll sent from to {receiver} successfully.")
-    else:
-        print(f"Failed to send {receiver} Poll message.")
+
+    message = send_request(data, SEND_POLL, f"Poll sent from {chat_id} to {receiver}")
+    cache_message_ids(receiver, update, message)

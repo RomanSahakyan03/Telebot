@@ -18,16 +18,15 @@ class BotDB:
         self.cursor.execute(select_query)
         result = self.cursor.fetchone()
         if result:
-            user_params = dict(
-                zip([column[0] for column in self.cursor.description], result))
+            user_params = dict(zip([column[0] for column in self.cursor.description], result))
             return user_params
         else:
             return None
 
-    def check_exist(self, chat_id):
-        user_params = self.select_parameter(columns="*", condition="chat_id = ?", params=(chat_id,))
-        num_filled_cols = len([v for v in user_params[0] if v is not None])
-        return bool(user_params) and num_filled_cols == len(self.cursor.description) - 1
+    # def check_exist(self, chat_id):
+    #     user_params = self.select_parameter(columns="*", condition="chat_id = ?", params=(chat_id,))
+    #     num_filled_cols = len([v for v in user_params[0] if v is not None])
+    #     return bool(user_params) and num_filled_cols == len(self.cursor.description) - 1
 
     def check_all_columns_filled(self, chat_id):
         cursor = self.cursor

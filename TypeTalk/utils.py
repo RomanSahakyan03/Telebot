@@ -7,11 +7,22 @@ from geopy import Nominatim
 
 cache = create_redis_client() 
 
+# Get the absolute path of the current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the absolute file path
+file_path = os.path.join(current_dir, 'typetalk_texts.json')
+
+with open(file_path, 'r', encoding="UTF-8") as f:
+    texts = json.load(f)
+
 # Create an instance of the geocoder
 geolocator = Nominatim(user_agent="TypeTalk")
 
 
-def from_coords_to_name(latitude, longitude):
+def from_coords_to_name(latitude, longitude, lang):
+    if not(latitude or longitude):
+        return None
     # Reverse geocode the coordinates to get the location information
     location = geolocator.reverse((latitude, longitude), exactly_one=True)
     address = location.raw['address']
@@ -20,14 +31,11 @@ def from_coords_to_name(latitude, longitude):
     for place in places:
         if name := address.get(place, ''):
             return name
-    return "somewhere lol"
+    return texts["no_geo"][lang]
 
 # Set up API endpoint and bot token
 telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
 API_LINK = f"https://api.telegram.org/bot{telegram_token}"
-
-with open('TypeTalk/typetalk_texts.json', 'r', encoding="UTF-8") as f:
-    texts = json.load(f)
 
 mbti_types = [
     "INTJ", "INFJ", "ISTJ", "ISTP",
@@ -36,6 +44,8 @@ mbti_types = [
     "ENTP",  "ENFP",  "ESFJ",  "ESFP"
 ]
 mbti_indexes = {type : i for i, type in enumerate(mbti_types)}
+
+sexes = ["male", "female", "both"]
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(math.radians, [float(lat1), float(lon1), float(lat2), float(lon2)])
@@ -62,6 +72,14 @@ def get_mbti_types_keyboard(x):
     keyboard["inline_keyboard"].append([{"text" : "clear all", "callback_data" : "clall"}])
     return keyboard
 
+lang_keyboard_with_settings = {
+    "inline_keyboard": [
+        [{"text": "🇺🇸 English", "callback_data": "en_with_settings"},
+        {"text": "🇷🇺 Русский", "callback_data": "ru_with_settings"}],
+        [{"text": "🇫🇷 français", "callback_data": "fr_with_settings"},
+        {"text": "🇪🇸 Español", "callback_data": "es_with_settings"}]
+        ]}
+
 lang_keyboard = {
     "inline_keyboard": [
         [{"text": "🇺🇸 English", "callback_data": "en"},
@@ -70,21 +88,65 @@ lang_keyboard = {
         {"text": "🇪🇸 Español", "callback_data": "es"}]
         ]}
 
+def main_keyboard(lang):
+    keyboard = {
+        "keyboard":
+            [[{"text": texts["main keyboard"]["joining"][lang]},
+            {"text": texts["main keyboard"]["settings"][lang]}],
+            [{"text": texts["main keyboard"]["about page"][lang]}]],
+
+        "resize_keyboard": True,
+        "one_time_keyboard" : True
+    }
+    return keyboard
+
+def sex_keyboard(lang):
+    keyboard = {
+        "inline_keyboard":
+            [
+                [{"text": texts["sex_keyboard"]["male"][lang], "callback_data": "male_mysex"},
+                {"text": texts["sex_keyboard"]["female"][lang], "callback_data": "female_mysex"}]
+            ],
+    }
+    return keyboard
+
+def preferred_sexes_keyboard(lang):
+    keyboard = {
+        "inline_keyboard":
+            [
+                [{"text": texts["sexes_keyboard"]["male"][lang], "callback_data": "male_preferredsex"},
+                {"text": texts["sexes_keyboard"]["female"][lang], "callback_data": "female_preferredsex"}],
+                [{"text": texts["sexes_keyboard"]["both"][lang], "callback_data": "both_preferredsex"}]
+            ],
+
+    }
+    
+    return keyboard
+
+rate_keyboard = {
+        "inline_keyboard":
+            [
+                [{"text": "👍", "callback_data": "like"},
+                {"text": "👎", "callback_data": "dislike"}],
+            ]
+    }
+
+
 def make_pair(chat_id1, chat_id2):
     cache.hset('pairs', chat_id1, chat_id2)
     cache.hset('pairs', chat_id2, chat_id1)
 
 def del_pair(chat_id1):
     chat_id2 = cache.hget('pairs', chat_id1).decode()
-    cache.delete(str(chat_id1))
-    cache.delete(str(chat_id2))
+    cache.delete(chat_id1)
+    cache.delete(chat_id2)
     cache.hdel('pairs', chat_id1)
     cache.hdel('pairs', chat_id2)
 
 def send_request(data: dict, method: str, handler = None):
     if handler:
-        handler_success = f"{handler} opened Successfully."
-        handler_fail = f"Failed to open {handler}."
+        handler_success = f"Successfully: {handler}."
+        handler_fail = f"Failed: {handler}."
     else:
         handler_success = f"{method.capitalize()} request successful."
         handler_fail = f"{method.capitalize()} request failed."

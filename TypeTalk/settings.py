@@ -15,8 +15,8 @@ db.create_table('users', [
     'age INTEGER(1)', 
     'age_interval TEXT',
     'rate INTEGER(1) DEFAULT 5',
-    'gender TEXT',
-    'preferred_genders TEXT'
+    'sex INTEGER(1)',
+    'sexes INTEGER(1)'
 ])
 
 telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
