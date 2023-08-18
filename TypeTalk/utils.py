@@ -72,14 +72,6 @@ def get_mbti_types_keyboard(x):
     keyboard["inline_keyboard"].append([{"text" : "clear all", "callback_data" : "clall"}])
     return keyboard
 
-lang_keyboard_with_settings = {
-    "inline_keyboard": [
-        [{"text": "🇺🇸 English", "callback_data": "en_with_settings"},
-        {"text": "🇷🇺 Русский", "callback_data": "ru_with_settings"}],
-        [{"text": "🇫🇷 français", "callback_data": "fr_with_settings"},
-        {"text": "🇪🇸 Español", "callback_data": "es_with_settings"}]
-        ]}
-
 lang_keyboard = {
     "inline_keyboard": [
         [{"text": "🇺🇸 English", "callback_data": "en"},
@@ -91,9 +83,9 @@ lang_keyboard = {
 def main_keyboard(lang):
     keyboard = {
         "keyboard":
-            [[{"text": texts["main keyboard"]["joining"][lang]},
-            {"text": texts["main keyboard"]["settings"][lang]}],
-            [{"text": texts["main keyboard"]["about page"][lang]}]],
+            [[{"text": texts["main_keyboard"]["joining"][lang]},
+            {"text": texts["main_keyboard"]["settings"][lang]}],
+            [{"text": texts["main_keyboard"]["about_page"][lang]}]],
 
         "resize_keyboard": True,
         "one_time_keyboard" : True
@@ -154,9 +146,11 @@ def send_request(data: dict, method: str, handler = None):
     response = requests.post(f"{API_LINK}/{method}", json=data)
     if response.status_code == 200:
         print(handler_success)
+        return response.json()['result']
     else:
         print(handler_fail)
-    return response.json()['result']
+        print(response.json())
+    
 
 if __name__ ==  "__main__":
     pass

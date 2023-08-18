@@ -61,7 +61,7 @@ def send_photo(receiver, update):
     info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
     sender_rating = info["rate"]
     lang = info["language"]
-    if sender_rating > 2.0:
+    if sender_rating > 20:
         photo = update["message"]["photo"][-1]["file_id"]
         data = {
             "chat_id" : receiver,
@@ -118,7 +118,7 @@ def send_video(receiver, update):
     info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
     sender_rating = info["rate"]
     lang = info["language"]
-    if sender_rating > 2.0:
+    if sender_rating > 20:
         video = update["message"]["video"]["file_id"]
         data = {
             "chat_id" : receiver,
@@ -181,7 +181,7 @@ def send_video_note(receiver, update):
     info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
     sender_rating = info["rate"]
     lang = info["language"]
-    if sender_rating > 2.0:
+    if sender_rating > 20:
         video_note = update["message"]["video_note"]["file_id"]
         data = {
             "chat_id" : receiver,

@@ -59,15 +59,13 @@ def system_edit_message(receiver, message_id, text = None,reply_markup = None, h
 
     return content
 
-def system_edit_types_message(receiver, message_id, res = None):
-    if res is None:
-        res = db.select_parameter("TYPES", f"chat_id = {receiver}")['TYPES']
+def system_edit_types_message(receiver, message_id, res):
     keyboard = get_mbti_types_keyboard(res)
-
+    lang = db.select_parameter("language", f"chat_id = {receiver}")["language"]
     data = {
         "chat_id" : receiver,
         "message_id" : message_id,
-        "text" : "Choose your preffered MBTI types",
+        "text" : texts["types settings"][lang],
         "reply_markup" : json.dumps(keyboard)
     }
 
@@ -81,15 +79,17 @@ def system_delete_message(receiver, message_id):
         "message_id" : message_id
     }
 
-    handler = f"{receiver} message deleted"
-    content = send_request(data, "deleteMessage", handler)
+    # Use a try-except block to catch any potential errors
+    try:
+        content = send_request(data, "deleteMessage", f"Deleted message {message_id} from {receiver}")
+    except Exception as e:
+        print(f"Error deleting message: {e}")
 
     return content
 
 # cancel only "state" or "waiting"
-def cancel_keyboard(chat_id, option):
+def cancel_keyboard(lang, option):
     cancel = "cancel_" + option
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     keyboard = {
     "inline_keyboard": [
         [{"text": texts["cancel_keyboard"][lang], "callback_data": cancel}]
@@ -225,16 +225,16 @@ def join(update):
 
 
         text = f"{texts['join'][lang]}\n"
-        text += f"{texts['prefarred_ages'][lang]}{preferred_ages}\n"
-        text += f"{texts['region'][lang]}{name}\n"
-        text += f"{texts['TYPES'][lang]}{', '.join(types_list)}\n"
-        text += f"{texts['sexes'][lang]}{texts[sexes[sex_index]][lang]}"
-        keyboard = cancel_keyboard(chat_id, "waiting")
+        text += f"{texts['settings']['prefarred_ages'][lang]}{preferred_ages}\n"
+        text += f"{texts['settings']['region'][lang]}{name}\n"
+        text += f"{texts['settings']['TYPES'][lang]}{', '.join(types_list)}\n"
+        text += f"{texts['settings']['sexes'][lang]}{texts[sexes[sex_index]][lang]}"
+        keyboard = cancel_keyboard(lang, "waiting")
 
         # Send the message
         content = system_send_message(chat_id, text, keyboard, "waiting message")
         cache.sadd("waiting_pool", chat_id)
-        cache.hset("waiting_message", chat_id, content["message_id"])
+        # cache.hset("waiting_message", chat_id, content["message_id"])
     else:
         print(chat_id)
         system_send_message(chat_id, texts["do_not_join"][lang], None, "not joining error message")
@@ -253,7 +253,7 @@ def start(update):
             "chat_id" : chat_id,
             "photo" : "AgACAgIAAxkBAAIMG2R669446fymMURznmwSEwwLxzBIAAKWzDEb9zTZS1nd7Nbv63VJAQADAgADeAADLwQ",
             "caption" : text,
-            "reply_markup" : lang_keyboard_with_settings
+            "reply_markup" : lang_keyboard
         }
         send_request(data, "sendPhoto", f"Start menu opened for {chat_id}")
     else:
@@ -266,7 +266,7 @@ def about(update):
     data = {
         "chat_id" : chat_id,
         "photo" : "https://i.pinimg.com/474x/a1/2b/8e/a12b8ebbfa769903ac48ba27c6519e9d.jpg",
-        "caption" : texts["about page"][lang],
+        "caption" : texts["about_page"][lang],
         "reply_markup" : main_keyboard(lang)
     }
 
@@ -299,7 +299,6 @@ def next(update):
     join(update)
 
 def settings(update):
-    
     chat_id = update['message']['from']['id'] if 'message' in update else update['callback_query']['from']['id']
     params = db.select_parameter("*", f"chat_id = {chat_id}")
     lang = params["language"]
@@ -319,31 +318,33 @@ def settings(update):
     for key, value in params.items():
         if key not in ["id", "chat_id"]:
             if value != None or key in ["region_lat", "region_lon"] :
-                if key == "region_lat":
+                if key == "language":
+                    text += f"{texts['settings'][key][lang]}{texts[lang]}\n"
+                elif key == "region_lat":
                     lat = value
                 elif key == "region_lon":
                     region = from_coords_to_name(lat, value, lang)
                     if region:
-                        text += f"{texts['region'][lang]}{region}\n"
+                        text += f"{texts['settings']['region'][lang]}{region}\n"
                     else:
-                        text += f"{texts['region'][lang]}{texts['empty'][lang]}\n"
+                        text += f"{texts['settings']['region'][lang]}{texts['settings']['empty'][lang]}\n"
                 elif key == "TYPE":
-                    text += f"{texts[key][lang]}{mbti_types[value]}\n"
+                    text += f"{texts['settings'][key][lang]}{mbti_types[value]}\n"
                 elif key == "TYPES":
                     if value == 0:
                         value = 65535 
                     num_bits = 16
                     types_list = [f"{mbti_types[bit]}" for bit in range(num_bits) if (value >> bit) & 1]
-                    text += f"{texts[key][lang]}{', '.join(types_list)}\n"
+                    text += f"{texts['settings'][key][lang]}{', '.join(types_list)}\n"
                 elif key == "sex" or key == "sexes":
-                    text += f"{texts[key][lang]}{texts[sexes[value]][lang]}\n"
+                    text += f"{texts['settings'][key][lang]}{texts[sexes[value]][lang]}\n"
                 else:
                     if key == "rate" and value == round(value):
                         value = round(value) 
 
-                    text += f"{texts[key][lang]}{value}\n"
+                    text += f"{texts['settings'][key][lang]}{value}\n"
             else:
-                text += f"{texts[key][lang]}{texts['empty'][lang]}\n"
+                text += f"{texts['settings'][key][lang]}{texts['empty'][lang]}\n"
                 
 
     system_send_message(chat_id, text, keyboard, "Settings")
@@ -366,11 +367,13 @@ def state_handler(update, state):
             else:
                 cache.srem("age_collect", chat_id)
                 db.upsert_user_data({'age' : text}, condition)
-                system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
-                cache.hdel("waiting_message", chat_id)
+                system_delete_message(chat_id, update['message']['message_id'])
+                # system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
+                # cache.hdel("waiting_message", chat_id)
                 system_send_message(chat_id, texts["age set"][lang], None, 'setage')
         else:
             system_send_message(chat_id, texts["invalid data"][lang], None, 'error setage message')
+            return
     elif state == 'age_interval':
         if "message" not in update or "text" not in update["message"]:
             system_send_message(chat_id, texts["invalid data"][lang], None, "age set error")
@@ -388,8 +391,9 @@ def state_handler(update, state):
                 return
             db.upsert_user_data({'prefarred_ages' : text}, condition)
             cache.srem("age_interval", chat_id)
-            system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
-            cache.hdel("waiting_message", chat_id)
+            system_delete_message(chat_id, update['message']['message_id'])
+            # system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
+            # cache.hdel("waiting_message", chat_id)
             system_send_message(chat_id, texts["age set"][lang], None, 'setage interval')
         else:
             system_send_message(chat_id, texts["invalid data"][lang], None, "age set error")
@@ -402,13 +406,13 @@ def state_handler(update, state):
         longitude = update['message']['location']['longitude']
         db.upsert_user_data({'region_lat' : latitude}, condition)
         db.upsert_user_data({'region_lon' : longitude}, condition)
-        cache.srem("region_collect", chat_id)
-        system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
-        cache.hdel("waiting_message", chat_id)
-        system_send_message(chat_id, texts["location set"][lang], None, 'coords')
-
+        system_delete_message(chat_id, update['message']['message_id'])
+        # system_delete_message(chat_id, int(cache.hget("waiting_message", chat_id)))
+        # cache.hdel("waiting_message", chat_id)
+        system_send_message(chat_id, texts["location"]["location_set"][lang], None, 'coords')
 
     cache.hdel('state', chat_id)
+    settings(update)
 
 message_handlers = {
     'text' : send_message,
@@ -427,24 +431,29 @@ message_handlers = {
 
 def handle_region(update):
     chat_id = update['callback_query']['from']['id']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-    content = system_send_message(chat_id, texts["location handle"][lang], cancel_keyboard(chat_id, "state"), "set location")
-    cache.hset("waiting_message", chat_id, content["message_id"])
-    cache.sadd("region_collect", chat_id)
+    how_to = {"text": texts["location"]["idkhow_button"][lang], "callback_data": "idkhow"}
+    keyboard = cancel_keyboard(lang, "state")
+    keyboard["inline_keyboard"][0].append(how_to)
+    content = system_send_message(chat_id, texts["location"]["location_handle"][lang], keyboard, "set location")
+    # cache.hset("waiting_message", chat_id, content["message_id"])
     cache.hset('state', chat_id, 'region_collect')
 
 def handle_my_age(update):
     chat_id = update['callback_query']['from']['id']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-    content = system_send_message(chat_id, texts["age handle"][lang], cancel_keyboard(chat_id, "state"), "set age menu")
-    cache.hset("waiting_message", chat_id, content["message_id"])
+    content = system_send_message(chat_id, texts["age handle"][lang], cancel_keyboard(lang, "state"), "set age menu")
+    # cache.hset("waiting_message", chat_id, content["message_id"])
     cache.hset('state', chat_id, 'age_collect')
 
 def handle_preferred_ages(update):
     chat_id = update['callback_query']['from']['id']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-    content = system_send_message(chat_id, texts["ages handle"][lang], cancel_keyboard(chat_id, "state"), "set age interval menu")
-    cache.hset("waiting_message", chat_id, content["message_id"])
+    content = system_send_message(chat_id, texts["ages handle"][lang], cancel_keyboard(lang, "state"), "set age interval menu")
+    # cache.hset("waiting_message", chat_id, content["message_id"])
     cache.hset('state', chat_id, 'age_interval')
 
 # ----------------------------  
@@ -465,6 +474,7 @@ def change_type(update):
     db.upsert_user_data({'TYPE': index}, condition)
     system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     system_send_message(chat_id, texts["type set"][lang])
+    settings(update)
 
 def change_p_types(update):
     chat_id = update['callback_query']['from']['id']
@@ -486,6 +496,7 @@ def change_sex(update):
     db.upsert_user_data({'sex': sex_num}, condition)
     system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     system_send_message(chat_id, texts["sex set"][lang])
+    settings(update)
 
 def change_p_sex(update):
     chat_id = update['callback_query']['from']['id']
@@ -497,20 +508,13 @@ def change_p_sex(update):
     db.upsert_user_data({'sexes': sexes_num}, condition)
     system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     system_send_message(chat_id, texts["sexes set"][lang])
+    settings(update)
 
 def handle_language(update):
     chat_id = update['callback_query']['from']['id']
     callback_data = update['callback_query']['data']
     system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
-
-def handle_language_with_settings(update):
-    chat_id = update['callback_query']['from']['id']
-    callback_data = update['callback_query']['data'][:2]
-    print(callback_data)
-    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
-    db.upsert_user_data({"language": callback_data}, f"chat_id = {chat_id}")
-    system_send_message(chat_id, texts["set language"][callback_data], main_keyboard(callback_data), "language parameter _with_settings")
     settings(update)
 
 def handle_clall(update):
@@ -520,14 +524,15 @@ def handle_clall(update):
 
 def lang_setting(update):
     chat_id = update['callback_query']['from']['id']
-    # system_delete_message(chat_id, update['callback_query']['message']['message_id'])
+    print(update['callback_query']['message']['message_id'])
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     system_send_message(chat_id, texts["lang settings"][lang], lang_keyboard, 'Language selection menu')
 
 def TYPE_setting(update):
     chat_id = update['callback_query']['from']['id']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-    # Create the keyboard
     keyboard = {
     "inline_keyboard": [
         [{"text": mbti_types[bit], "callback_data": mbti_types[bit] + "_m"} for bit in range(row * 4, (row + 1) * 4) if bit < 16] for row in range((16 - 1) // 4 + 1)
@@ -546,12 +551,13 @@ def TYPES_setting(update):
 
 def handle_my_sex(update):
     chat_id = update['callback_query']['from']['id']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
-
     system_send_message(chat_id, texts["sex settings"][lang], sex_keyboard(lang), "set sex") 
 
 def handle_preferred_sexes(update):
     chat_id = update['callback_query']['from']['id']
+    system_delete_message(chat_id, update['callback_query']['message']['message_id'])
     lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
     system_send_message(chat_id, texts["sexes settings"][lang], preferred_sexes_keyboard(lang), "set preferred sexes")
 
@@ -564,6 +570,7 @@ def handle_cancel_state(update):
         lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
         cache.hdel('state', chat_id)
         system_send_message(chat_id, texts["cancel_state"][lang], main_keyboard(lang), "state cancled message")
+    settings(update)
 
 def handle_cancel_waiting(update):
     chat_id = update['callback_query']['from']['id']
@@ -572,9 +579,26 @@ def handle_cancel_waiting(update):
     if cache.sismember('waiting_pool', chat_id):
         lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
         cache.srem('waiting_pool', chat_id)
-        cache.hdel("waiting_message", chat_id)
+        # cache.hdel("waiting_message", chat_id)
         system_send_message(chat_id, texts["cancel_waiting"][lang], main_keyboard(lang), "waiting cancled message")
     
+def idkhow(update):
+    chat_id = update['callback_query']['from']['id']
+    message_id = update['callback_query']['message']['message_id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    i_know = {"text": texts["location"]["close"][lang], "callback_data": "iknow"}
+    keyboard = cancel_keyboard(lang, "state")
+    keyboard["inline_keyboard"][0].append(i_know)
+    system_edit_message(chat_id, message_id, texts["location"]["idkhow"][lang], keyboard)
+
+def iknow(update):
+    chat_id = update['callback_query']['from']['id']
+    message_id = update['callback_query']['message']['message_id']
+    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    idkhow = {"text": texts["location"]["idkhow_button"][lang], "callback_data": "idkhow"}
+    keyboard = cancel_keyboard(lang, "state")
+    keyboard["inline_keyboard"][0].append(idkhow)
+    system_edit_message(chat_id, message_id, texts["location"]["location_handle"][lang], keyboard)
 
 # ---------------------------- 
 
@@ -615,13 +639,15 @@ callback_actions = {
     "fr": handle_language,
     "ru": handle_language,
     "es": handle_language,
-    "en_with_settings": handle_language_with_settings,
-    "fr_with_settings": handle_language_with_settings,
-    "ru_with_settings": handle_language_with_settings,
-    "es_with_settings": handle_language_with_settings,
+    # "en_with_settings": handle_language_with_settings,
+    # "fr_with_settings": handle_language_with_settings,
+    # "ru_with_settings": handle_language_with_settings,
+    # "es_with_settings": handle_language_with_settings,
     "clall": handle_clall,
     "cancel_state" : handle_cancel_state,
     "cancel_waiting" : handle_cancel_waiting,
+    "idkhow" : idkhow,
+    "iknow" : iknow
     }
 
 def callback_handler(update):
@@ -648,10 +674,10 @@ COMMANDS = {
     '👋 Commencer la conversation' : join,
     '👋 Начать разговор' : join,
     '👋 Comenzar la conversación' : join,
-    '🛠️ Manage your Settings' : settings,
-    '🛠️ Gérer vos paramètres' : settings,
+    '🛠️ Manage Settings' : settings,
+    '🛠️ Gérer les Paramètres' : settings,
     '🛠️ Управление настройками' : settings,
-    '🛠️ Administrar tus ajustes' : settings,
+    '🛠️ Administrar la Configuración' : settings,
     '📖 About the bot' : about,
     '📖 À propos du bot' : about,
     '📖 О боте' : about,
@@ -679,7 +705,7 @@ def update_handler(update):
             if keyword in update['message'] and cache.hexists('pairs', chat_id):
                 pair = cache.hget('pairs', chat_id).decode()
                 print(f"sending {keyword} from {chat_id} to {pair}.")
-                handler(pair, update)     
+                handler(pair, update)
     elif 'edited_message' in update:
         if 'text' in update['edited_message']:
             edit_message(update)
