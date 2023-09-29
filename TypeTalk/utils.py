@@ -5,6 +5,7 @@ import os
 from config import create_redis_client
 from geopy import Nominatim
 
+SEND_MESSAGE = "sendMessage"
 cache = create_redis_client() 
 
 # Get the absolute path of the current directory
@@ -16,13 +17,82 @@ file_path = os.path.join(current_dir, 'typetalk_texts.json')
 with open(file_path, 'r', encoding="UTF-8") as f:
     texts = json.load(f)
 
+# cancel only "state" or "waiting"
+def cancel_keyboard(lang, option):
+    cancel = "cancel_" + option
+    keyboard = {
+    "inline_keyboard": [
+        [{"text": texts["keyboards"]["cancel_keyboard"][lang], "callback_data": cancel}]
+    ]}
+    return keyboard
+
+def system_send_message(receiver, text,reply_markup = None, handler = None):
+    data = {
+            "chat_id": receiver,
+            "text": text
+        }
+    if reply_markup:
+        data["reply_markup"] = json.dumps(reply_markup)
+
+    if handler is None:
+        handler = f"{receiver} message sent"
+
+    content = send_request(data, SEND_MESSAGE, handler)
+
+    return content
+
+def system_edit_message(receiver, message_id, text = None,reply_markup = None, handler = None):
+    data = {
+        "chat_id": receiver,
+        "message_id" : message_id,
+    }
+    if text:
+        data["text"] = text
+        
+    if reply_markup:
+        data["reply_markup"] = json.dumps(reply_markup)
+
+    if handler is None:
+        handler = f"{receiver} message edited"
+
+    content = send_request(data, "editMessageText", handler)
+
+    return content
+
+def system_edit_types_message(receiver, message_id, res, lang):
+    keyboard = get_mbti_types_keyboard(res)
+    data = {
+        "chat_id" : receiver,
+        "message_id" : message_id,
+        "text" : texts["configuration_menus"]["types_settings"][lang],
+        "reply_markup" : json.dumps(keyboard)
+    }
+
+    content = send_request(data, "editMessageText")
+
+    return content
+
+def system_delete_message(receiver, message_id):
+    data = {
+        "chat_id" : receiver,
+        "message_id" : message_id
+    }
+
+    # Use a try-except block to catch any potential errors
+    try:
+        content = send_request(data, "deleteMessage", f"Deleted message {message_id} from {receiver}")
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+
+    return content
+
 # Create an instance of the geocoder
 geolocator = Nominatim(user_agent="TypeTalk")
 
 
 def from_coords_to_name(latitude, longitude, lang):
     if not(latitude or longitude):
-        return None
+        return texts['location']['anywhere'][lang]
     # Reverse geocode the coordinates to get the location information
     location = geolocator.reverse((latitude, longitude), exactly_one=True)
     address = location.raw['address']
@@ -47,6 +117,24 @@ mbti_indexes = {type : i for i, type in enumerate(mbti_types)}
 
 sexes = ["male", "female", "both"]
 
+mbti_type_emoji = {
+    "INTJ": "🧠",  # The Architect
+    "INTP": "🔍",  # The Logician
+    "ENTJ": "📈",  # The Commander
+    "ENTP": "🗣️",  # The Debater
+    "INFJ": "🎭",  # The Advocate
+    "INFP": "🌱",  # The Mediator
+    "ENFJ": "🌟",  # The Protagonist
+    "ENFP": "😄",  # The Campaigner
+    "ISTJ": "📊",  # The Logistician
+    "ISFJ": "🧡",  # The Defender
+    "ESTJ": "💼",  # The Executive
+    "ESFJ": "🤗",  # The Consul
+    "ISTP": "🛠️",  # The Virtuoso
+    "ISFP": "🎨",  # The Adventurer
+    "ESTP": "🚀",  # The Entrepreneur
+    "ESFP": "🎉",  # The Entertainer
+}
 def haversine_distance(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(math.radians, [float(lat1), float(lon1), float(lat2), float(lon2)])
 
@@ -58,6 +146,48 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     distance = 6371 * c # Radius of the Earth in kilometers
 
     return distance
+
+def settings_status_bar(params : dict):
+    lang = params["language"]
+    text = f"{texts['settings']['header'][lang]}\n"
+    for key, value in params.items():
+        if key not in ["id", "chat_id", "adcount"]:
+            if value != None or key in ["region_lat", "region_lon"] :
+                if key == "language":
+                    text += f"{texts['settings'][key][lang]}{texts[lang]}\n"
+                elif key == "region_lat":
+                    lat = value
+                elif key == "region_lon":
+                    region = from_coords_to_name(lat, value, lang)
+                    text += f"{texts['settings']['region'][lang]}{region}\n"
+                elif key == "TYPE":
+                    text += f"{texts['settings'][key][lang]}{mbti_types[value]} {mbti_type_emoji[mbti_types[value]]}\n\n"
+                elif key == "TYPES":
+                    if value == 0:
+                        value = 65535 
+                    num_bits = 16
+                    types_list = [f"{mbti_types[bit]}" for bit in range(num_bits) if (value >> bit) & 1]
+                    text += f"{texts['settings'][key][lang]}"
+
+                    text += ", ".join(types_list[:8]) + (",\n" if len(types_list) > 8 else "\n") + ", ".join(types_list[8:])
+                    text += "\n" if len(types_list) > 8 else ""
+                    text += "\n"
+                elif key == "sex" or key == "sexes":
+                    text += f"{texts['settings'][key][lang]}{texts['keyboards']['sex_keyboard'][sexes[value]][lang]}\n"
+                    if key == "sexes":
+                        text += "\n"
+                elif key == "age" and value:
+                    text += f"{texts['settings'][key][lang]}{value} 🎂\n"
+                elif key == "preferred_ages" and value:
+                    text += f"{texts['settings'][key][lang]}{value} 👫\n\n"
+                else:
+                    if key == "rate":
+                        value = '.'.join(str(value)) 
+
+                    text += f"{texts['settings'][key][lang]}{value}\n"
+            else:
+                text += f"{texts['settings'][key][lang]}{texts['settings']['empty'][lang]}\n"
+    return text
 
 def get_mbti_types_keyboard(x):
     num_bits = 16
@@ -83,9 +213,9 @@ lang_keyboard = {
 def main_keyboard(lang):
     keyboard = {
         "keyboard":
-            [[{"text": texts["main_keyboard"]["joining"][lang]},
-            {"text": texts["main_keyboard"]["settings"][lang]}],
-            [{"text": texts["main_keyboard"]["about_page"][lang]}]],
+            [[{"text": texts["keyboards"]["main_keyboard"]["joining"][lang]},
+            {"text": texts["keyboards"]["main_keyboard"]["settings"][lang]}],
+            [{"text": texts["keyboards"]["main_keyboard"]["about_page"][lang]}]],
 
         "resize_keyboard": True,
         "one_time_keyboard" : True
@@ -96,8 +226,8 @@ def sex_keyboard(lang):
     keyboard = {
         "inline_keyboard":
             [
-                [{"text": texts["sex_keyboard"]["male"][lang], "callback_data": "male_mysex"},
-                {"text": texts["sex_keyboard"]["female"][lang], "callback_data": "female_mysex"}]
+                [{"text": texts["keyboards"]["sex_keyboard"]["male"][lang], "callback_data": "male_mysex"},
+                {"text": texts["keyboards"]["sex_keyboard"]["female"][lang], "callback_data": "female_mysex"}]
             ],
     }
     return keyboard
@@ -106,9 +236,9 @@ def preferred_sexes_keyboard(lang):
     keyboard = {
         "inline_keyboard":
             [
-                [{"text": texts["sexes_keyboard"]["male"][lang], "callback_data": "male_preferredsex"},
-                {"text": texts["sexes_keyboard"]["female"][lang], "callback_data": "female_preferredsex"}],
-                [{"text": texts["sexes_keyboard"]["both"][lang], "callback_data": "both_preferredsex"}]
+                [{"text": texts["keyboards"]["sex_keyboard"]["male"][lang], "callback_data": "male_preferredsex"},
+                {"text": texts["keyboards"]["sex_keyboard"]["female"][lang], "callback_data": "female_preferredsex"}],
+                [{"text": texts["keyboards"]["sex_keyboard"]["both"][lang], "callback_data": "both_preferredsex"}]
             ],
 
     }

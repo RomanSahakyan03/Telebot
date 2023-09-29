@@ -40,11 +40,12 @@ You're all set! Now you can run TypeTalk and start using it for your Telegram bo
 
 ### Available Commands
 
-- `/start`: Begin the TypeTalk conversation.
-- `/settings`: 
-- `/about <sex>`: 
-- `/shareprofil <mbti>`: 
-- `/stop <region>`: 
+- `/start`: Start the bot or begin the TypeTalk conversation.
+- `/settings`: Settings menu bar
+- `/about`: About bot
+- `/shareprofil`: Share user profil in conversation
+- `/stop`: Stop the conversation
+- `/next`: Choose next partner immediately
 
 ## File Structure
 
@@ -58,6 +59,9 @@ TypeTalk/
 ├── typetalk_texts.json
 ├── userdata.db
 ├── requirements.txt
+├── commands.py
+├── callback_actions.py
+├── matching_system.py
 └── README.md
 ```
 
@@ -69,6 +73,9 @@ TypeTalk/
 - `typetalk_texts.json`: JSON file containing text templates for the bot's responses and system texts in multiple languages.
 - `userdata.db`: SQLite database file for storing user data.
 - `requirements.txt`: List of Python dependencies required for running the project.
+- `commands.py`: General commands which user uses.
+- `callback_actions.py`: Callback buttons. Can be inline or keyboard button.
+- `matching_system.py`: Matching algorithm.
 - `README.md`: This file.
 
 ## Contributing

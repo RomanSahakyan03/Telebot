@@ -1,14 +1,14 @@
 {
-  "en": "English",
-  "fr": "Français",
-  "ru": "Русский",
-  "es": "Español",
+  "en": "English 🌍",
+  "fr": "Français 🌍",
+  "ru": "Русский 🌍",
+  "es": "Español 🌍",
 
   "location" : {
     "idkhow_button":{
       "en": "🤷‍♂️I don't know how",
       "fr": "🤷‍♂️Je ne sais pas comment",
-      "ru": "🤷‍♂️Я не знаю, как",
+      "ru": "🤷‍♂️Я не знаю как",
       "es": "🤷‍♂️No se como"
     },
     "idkhow" : {
@@ -29,11 +29,23 @@
       "ru": "Отправьте свое местоположение по Telegram-му:",
       "es": "Envía tu ubicación por Telegram:"
     },
-    "location_set": {
-      "en": "Location set succesfully",
-      "fr": "Emplacement défini avec succès.",
-      "ru": "Местоположение успешно установлено",
-      "es": "Ubicación establecida correctamente."
+    "location_reset" : {
+      "en": "Location reset successfully",
+      "fr": "Emplacement réinitialisé avec succès",
+      "ru": "Успешный сброс местоположения",
+      "es": "Restablecimiento de ubicación con éxito"
+    },
+    "reset_button" : {
+      "en": "🔄Reset",
+      "fr": "🔄Réinitialiser",
+      "ru": "🔄Сбросить",
+      "es": "🔄Borrar"
+    },
+    "anywhere": {
+      "en": "Anywhere 🗺️",
+      "fr": "Partout 🗺️",
+      "ru": "Где-то 🗺️",
+      "es": "En cualquier lugar 🗺️"
     }
   },
   "about_page": {
@@ -41,26 +53,6 @@
     "fr": "Bienvenue sur TypeTalk ! \nNous sommes un chatbot anonyme qui vous connecte avec des personnes similaires en fonction de votre type de personnalité MBTI.\n\nInstructions: \nTapez /join pour commencer un nouveau chat\nUtilisez /settings pour personnaliser vos paramètres de recherche. \nUtilisez /stop pour mettre fin à une conversation à tout moment. \nUtilisez /next pour changer de partenaire de conversation. \n\nNous donnons la priorité à votre vie privée et nous assurons que tous les chats sont anonymes et confidentiels !",
     "ru": "Добро пожаловать в TypeTalk! \nМы - анонимный чат-бот, который соединяет вас с единомышленниками на основе вашего типа личности MBTI.\n\nИнструкции: \nВведите /join, чтобы начать новый чат\nИспользуйте /settings, чтобы настроить параметры поиска. \nИспользуйте /stop, чтобы закончить чат в любое время. \nИспользуйте /next, чтобы переключиться на другого партнера во время разговора. \n\nМы уделяем особое внимание вашей конфиденциальности и гарантируем, что все чаты являются анонимными и остаются конфиденциальными!!",
     "es": "¡Bienvenido a TypeTalk! \nSomos un chatbot anónimo que te conecta con personas afines según tu tipo de personalidad MBTI.\n\nInstrucciones: \nEscribe /join para empezar un nuevo chat\nUsa /settings para personalizar tus parámetros de búsqueda. \nUsa /stop para terminar un chat en cualquier momento. \nUsa /next para cambiar de pareja de conversación. \n\n¡Priorizamos tu privacidad y aseguramos que todas las conversaciones son anónimas y confidenciales!"
-  },
-  "main_keyboard": {
-    "joining": {
-      "en": "👋 Start The Conversation",
-      "fr": "👋 Commencer la conversation",
-      "ru": "👋 Начать разговор",
-      "es": "👋 Comenzar la conversación"
-    },
-    "settings": {
-      "en": "🛠️ Manage Settings",
-      "fr": "🛠️ Gérer les Paramètres",
-      "ru": "🛠️ Управление настройками",
-      "es": "🛠️ Administrar la Configuración"
-    },
-    "about_page": {
-      "en": "📖 About the bot",
-      "fr": "📖 À propos du bot",
-      "ru": "📖 О боте",
-      "es": "📖 Sobre el bot"
-    }
   },
   "matching": {
     "partner found": {
@@ -94,148 +86,6 @@
       "es": "Sexo : "
     }
   },
-  "no username": {
-    "en": "You have no username to share....",
-    "fr": "Vous n'avez pas de nom d'utilisateur à partager....",
-    "ru": "У вас нет имени пользователя, которым вы могли бы поделиться...",
-    "es": "No tienes nombre de usuario para compartir...."
-  },
-  "invalid data": {
-    "en": "invalid data",
-    "fr": "données invalides",
-    "ru": "не верный ввод",
-    "es": "datos inválidos"
-  },
-  "age set": {
-    "en": "age set succesfully",
-    "fr": "âge défini avec succès",
-    "ru": "возраст успешно установлен",
-    "es": "edad establecida correctamente"
-  },
-  "age handle": {
-    "en": "Input your age:",
-    "fr": "Entrez votre âge:",
-    "ru": "Введите свой возраст:",
-    "es": "Ingrese su edad:"
-  },
-  "ages handle": {
-    "en": "Input your preferred age range in the following format: 16-21",
-    "fr": "Entrez votre tranche d'âge préférée au format suivant: 16-21",
-    "ru": "Введите предпочитаемый вами возрастной диапазон в следующем формате: 16-21",
-    "es": "Ingrese su rango de edad preferido en el siguiente formato: 16-21"
-  },
-  "not enough age": {
-    "en": "your age is not enough(",
-    "fr": "Vous n'avez pas l'âge requis(",
-    "ru": "Вам недостаточно лет.(",
-    "es": "No tienes la edad suficiente.("
-  },
-  "low age alert": {
-    "en": "Do I need to call the POLICE??!?!?!??!",
-    "fr": "Dois-je appeler la POLICE ??!?!?!??!",
-    "ru": "Мне нужно вызвать ПОЛИЦИЮ??!?!?!??!",
-    "es": "¿Debo llamar a la POLICÍA??!?!?!??!"
-  },
-  "type set": {
-    "en": "Your MBTI type set successfully",
-    "fr": "Votre type MBTI a été installé avec succès",
-    "ru": "Ваш тип MBTI установлен успешно",
-    "es": "Su tipo MBTI instalado correctamente"
-  },
-  "sex set": {
-    "en": "Your sex set successfully",
-    "fr": "Votre plancher est installé avec succès",
-    "ru": "Ваш пол установлен успешно",
-    "es": "Su piso está instalado con éxito"
-  },
-  "sexes set": {
-    "en": "Your preferred sex(es) set successfully",
-    "fr": "Vos sex(es) préférés définis avec succès",
-    "ru": "Ваш предпочтительный пол(ы) установлен успешно",
-    "es": "Tus sexo(s) preferidos establecidos con éxito"
-  },
-  "type settings": {
-    "en": "Choose your personality type",
-    "fr": "Choisissez votre type de personnalité",
-    "ru": "Выберите свой тип личности.",
-    "es": "Elige tu tipo de personalidad"
-  },
-  "types settings": {
-    "en": "Choose preferred types (If no selection, all types will be chosen)",
-    "fr": "Choisissez les types préférés (Si aucun choix n'est fait, tous les types seront sélectionnés)",
-    "ru": "Выберите предпочитаемые типы (Если ничего не выбрано, будут выбраны все типы)",
-    "es": "Elija los tipos preferidos (Si no se hace ninguna selección, se asumirá que se eligen todos los tipos)"
-  },
-  "lang settings": {
-    "en": "Preferred language?",
-    "fr": "Langue préférée ?",
-    "ru": "Предпочитаемый язык?",
-    "es": "¿Idioma preferido?"
-  },
-  "sex settings": {
-    "en": "Choose your sex",
-    "fr": "Choisissez votre sexe",
-    "ru": "Выберите свой пол",
-    "es": "Elige tu sexo"
-  },
-  "sexes settings": {
-    "en": "Preferred sexes?",
-    "fr": "Sexes préférés ?",
-    "ru": "Предпочитаемые полы?",
-    "es": "¿Sexos preferidos?"
-  },
-  "sex_keyboard": {
-    "male": {
-      "en": "male",
-      "fr": "homme",
-      "ru": "мужской",
-      "es": "masculino"
-    },
-    "female": {
-      "en": "female",
-      "fr": "femelle",
-      "ru": "женский",
-      "es": "femenino"
-    }
-  },
-  "sexes_keyboard": {
-    "male": {
-      "en": "male",
-      "fr": "homme",
-      "ru": "мужской",
-      "es": "masculino"
-    },
-    "female": {
-      "en": "female",
-      "fr": "femelle",
-      "ru": "женский",
-      "es": "femenino"
-    },
-    "both": {
-      "en": "both",
-      "fr": "les deux",
-      "ru": "оба",
-      "es": "ambos"
-    }
-  },
-  "set language": {
-    "en": "Language set Successfully",
-    "fr": "Langue définie avec succès",
-    "ru": "Язык успешно установлен",
-    "es": "Idioma establecido correctamente"
-  },
-  "cancel_keyboard": {
-    "en": "🚫 Cancel",
-    "fr": "🚫 Annuler",
-    "ru": "🚫 Отмена",
-    "es": "🚫 Cancelar"
-  },
-  "do_not_join": {
-    "en": "🙏Please fill in all the settings to access the chat /settings.",
-    "fr": "🙏Veuillez remplir tous les paramètres pour accéder au chat dans /settings.",
-    "ru": "🙏Пожалуйста, заполните все настройки, чтобы получить доступ к чату в /settings.",
-    "es": "🙏Por favor, complete todas las configuraciones para acceder al chat en /settings."
-  },
   "ended conversation": {
     "en": "👋 Conversation ended. Type /join to begin a new conversation.",
     "fr": "👋 Conversation terminée. Tapez /join pour commencer une nouvelle conversation.",
@@ -244,10 +94,10 @@
   },
   "settings": {
     "header": {
-      "en": "What settings would you like to configure? 🛠️",
-      "fr": "Quels paramètres souhaitez-vous configurer ? 🛠️",
-      "ru": "Какие настройки вы бы хотели настроить? 🛠️",
-      "es": "¿Qué configuración te gustaría ajustar? 🛠️"
+      "en": "🔧 Configure Your Settings 🔧\n",
+      "fr": "🔧 Configurez vos paramètres 🔧\n",
+      "ru": "🔧 Настройте свои параметры 🔧\n",
+      "es": "🔧 Configure sus ajustes 🔧\n"
     },
     "empty": {
       "en": "—",
@@ -256,58 +106,58 @@
       "es": "—"
     },
     "language" : {
-      "en": "Language : ",
-      "fr": "Langue : ",
-      "ru": "Язык : ",
-      "es": "Idioma : "
+      "en": "Language: ",
+      "fr": "Langue: ",
+      "ru": "Язык: ",
+      "es": "Idioma: "
     },
     "TYPE": {
-      "en": "Type : ",
-      "fr": "Type : ",
-      "ru": "Тип : ",
-      "es": "Tipo : "
+      "en": "Personality Type: ",
+      "fr": "Type de personnalité : ",
+      "ru": "Тип личности:  ",
+      "es": "Tipo de personalidad: "
     },
     "TYPES": {
-      "en": "Preferred Type(s) : ",
-      "fr": "Type(s) préféré(s) : ",
-      "ru": "Предпочтительный тип(ы) : ",
-      "es": "Tipo(s) preferido(s) : "
+      "en": "Preferred Personality Types:\n",
+      "fr": "Types de personnalité préférés:\n",
+      "ru": "Предпочтительные типы личностей:\n",
+      "es": "Tipos de personalidad preferidos:\n"
     },
     "region": {
-      "en": "Region : ",
-      "fr": "Région : ",
-      "ru": "Регион : ",
-      "es": "Región : "
+      "en": "Region: ",
+      "fr": "Région: ",
+      "ru": "Регион: ",
+      "es": "Región: "
     },
     "age": {
-      "en": "Age : ",
-      "fr": "Âge  : ",
-      "ru": "Возраст : ",
-      "es": "Edad : "
+      "en": "Age: ",
+      "fr": "Âge: ",
+      "ru": "Возраст: ",
+      "es": "Edad: "
     },
-    "prefarred_ages": {
-      "en": "Preferred Age Gap : ",
-      "fr": "Écart d'Âge Préféré : ",
-      "ru": "Предпочитаемый Возрастной Отрезок : ",
-      "es": "Diferencia de Edad Preferida : "
+    "preferred_ages": {
+      "en": "Preferred Age Range: ",
+      "fr": "Tranche d'âge préférée: ",
+      "ru": "Предпочтительный возрастной диапазон: ",
+      "es": "Edad preferida: "
     },
     "sex": {
-      "en": "Sex : ",
-      "fr": "Sexe : ",
-      "ru": "Пол : ",
-      "es": "Sexo : "
+      "en": "Sex: ",
+      "fr": "Sexe: ",
+      "ru": "Пол: ",
+      "es": "Sexo: "
     },
     "sexes": {
-      "en": "Preferred Sex(es) : ",
-      "fr": "Sexe(s) Préféré(s) : ",
-      "ru": "Предпочитаемый пол(ы) : ",
-      "es": "Sexo(s) Preferido(s) : "
+      "en": "Preferred Sex: ",
+      "fr": "Sexe Préféré: ",
+      "ru": "Предпочитаемый пол: ",
+      "es": "Sexo Preferido: "
     },
     "rate" : {
-      "en": "Your Current Rate : ",
-      "fr": "Votre Taux Actuel : ",
-      "ru": "Ваша текущая активность : ",
-      "es": "Tu Tarifa Actual : "
+      "en": "Your Current Rating: ",
+      "fr": "Votre note actuelle: ",
+      "ru": "Ваш текущий рейтинг: ",
+      "es": "Su calificación actual: "
     },
     "no_geo" : {
       "en": "somewhere lol",
@@ -352,10 +202,10 @@
       "es": "⚤ Sexo"
     },
     "menu_sexes": {
-      "en": "⚤ Preferred sex(es)",
-      "fr": "⚤ Sexe(s) préféré(s)",
-      "ru": "⚤ Предпочитаемый пол(ы)",
-      "es": "⚤ Sexo(s) preferido(s)"
+      "en": "⚤ Preferred sex",
+      "fr": "⚤ Sexe préféré",
+      "ru": "⚤ Предпочитаемый пол",
+      "es": "⚤ Sexo preferido"
     },
     "menu_region": {
       "en": "🌍 Region",
@@ -408,46 +258,192 @@
     "ru": "отмена ожидания",
     "es": "espera de cancelación"
   },
-  "male": {
-    "en": "male",
-    "fr": "homme",
-    "ru": "мужской",
-    "es": "hombre"
-  },
-  "female": {
-    "en": "female",
-    "fr": "femme",
-    "ru": "женский",
-    "es": "mujer"
-  },
-  "both": {
-    "en": "both sexes",
-    "fr": "les deux sexes",
-    "ru": "оба пола",
-    "es": "ambos"
-  },
   "join": {
     "en": "We are currently searching for a suitable partner for you based on the following criteria:\n\n",
     "fr": "Nous recherchons actuellement un partenaire adapté pour vous en fonction des critères suivants :\n\n",
     "ru": "В настоящее время мы ищем подходящего партнера для вас на основе следующих критериев:\n\n",
     "es": "Actualmente estamos buscando un compañero adecuado para ti basado en los siguientes criterios:\n\n"
   },
-  "rate_op" : {
-    "en": "rate him",
-    "fr": "rate him",
-    "ru": "rate him",
-    "es": "rate him"
+  "rating" : {
+    "rate_op" : {
+      "en": "rate him",
+      "fr": "rate him",
+      "ru": "rate him",
+      "es": "rate him"
+    },
+    "tanks_rating" : {
+      "en": "thanks for rating",
+      "fr": "rate him",
+      "ru": "rate him",
+      "es": "rate him"    
+    }
   },
-  "not kenough rating" :  {
-    "en": "your rating now is lower than 2, grow it up to be allowed to send this message type",
-    "fr": "rate him",
-    "ru": "rate him",
-    "es": "rate him"    
+  "success":{
+    "location_set": {
+      "en": "Location set successfully",
+      "fr": "Emplacement défini avec succès.",
+      "ru": "Местоположение успешно установлено",
+      "es": "Ubicación establecida correctamente."
+    },
+    "language_set": {
+      "en": "Language set Successfully",
+      "fr": "Langue définie avec succès",
+      "ru": "Язык успешно выбран",
+      "es": "Idioma configurado correctamente"
+    },
+    "type_set": {
+      "en": "Your type set successfully",
+      "fr": "Votre type défini avec succès",
+      "ru": "Ваш тип успешно выбран",
+      "es": "Su tipo establecido con éxito"
+    },
+    "sex_set": {
+      "en": "Your sex set successfully",
+      "fr": "Votre plancher est installé avec succès",
+      "ru": "Ваш пол установлен успешно",
+      "es": "Su piso está instalado con éxito"
+    },
+    "sexes_set": {
+      "en": "Your preferred sex set successfully",
+      "fr": "Vos sex préférés définis avec succès",
+      "ru": "Ваш предпочтительный пол установлен успешно",
+      "es": "Tus sexo preferidos establecidos con éxito"
+    },
+    "age_set": {
+      "en": "age set successfully",
+      "fr": "âge défini avec succès",
+      "ru": "возраст успешно установлен",
+      "es": "edad establecida correctamente"
+    }
   },
-  "tanks_rating" : {
-    "en": "thanks for rating",
-    "fr": "rate him",
-    "ru": "rate him",
-    "es": "rate him"    
+  "exceptions": {
+    "no_username": {
+      "en": "You have no username to share....",
+      "fr": "Vous n'avez pas de nom d'utilisateur à partager....",
+      "ru": "У вас нет имени пользователя, которым вы могли бы поделиться...",
+      "es": "No tienes nombre de usuario para compartir...."
+    },
+    "invalid_data": {
+      "en": "invalid data",
+      "fr": "données invalides",
+      "ru": "не верный ввод",
+      "es": "datos inválidos"
+    },
+    "not_enough_age": {
+      "en": "your age is not enough(",
+      "fr": "Vous n'avez pas l'âge requis(",
+      "ru": "Вам недостаточно лет.(",
+      "es": "No tienes la edad suficiente.("
+    },
+    "low_age_alert": {
+      "en": "Do I need to call the POLICE??!?!?!??!",
+      "fr": "Dois-je appeler la POLICE ??!?!?!??!",
+      "ru": "Мне нужно вызвать ПОЛИЦИЮ??!?!?!??!",
+      "es": "¿Debo llamar a la POLICÍA??!?!?!??!"
+    },
+    "do_not_join": {
+      "en": "🙏Please fill in all the settings to access the chat /settings.",
+      "fr": "🙏Veuillez remplir tous les paramètres pour accéder au chat dans /settings.",
+      "ru": "🙏Пожалуйста, заполните все настройки, чтобы получить доступ к чату в /settings.",
+      "es": "🙏Por favor, complete todas las configuraciones para acceder al chat en /settings."
+    },
+    "not_kenough_rating" :  {
+      "en": "your rating now is lower than 2, grow it up to be allowed to send this message type",
+      "fr": "rate him",
+      "ru": "rate him",
+      "es": "rate him"    
+    }
+  },
+  "configuration_menus": {
+    "lang_settings": {
+      "en": "Preferred language?",
+      "fr": "Langue préférée ?",
+      "ru": "Предпочитаемый язык?",
+      "es": "¿Idioma preferido?"
+    },
+    "age_handle": {
+      "en": "Input your age:",
+      "fr": "Entrez votre âge:",
+      "ru": "Введите свой возраст:",
+      "es": "Ingrese su edad:"
+    },
+    "type_settings": {
+      "en": "Choose your personality type",
+      "fr": "Choisissez votre type de personnalité",
+      "ru": "Выберите свой тип личности.",
+      "es": "Elige tu tipo de personalidad"
+    },
+    "types_settings": {
+      "en": "Choose preferred types (If no selection, all types will be chosen)",
+      "fr": "Choisissez les types préférés (Si aucun choix n'est fait, tous les types seront sélectionnés)",
+      "ru": "Выберите предпочитаемые типы (Если ничего не выбрано, будут выбраны все типы)",
+      "es": "Elija los tipos preferidos (Si no se hace ninguna selección, se asumirá que se eligen todos los tipos)"
+    },
+    "ages_handle": {
+      "en": "Input your preferred age range in the following format: 16-21",
+      "fr": "Entrez votre tranche d'âge préférée au format suivant: 16-21",
+      "ru": "Введите предпочитаемый вами возрастной диапазон в следующем формате: 16-21",
+      "es": "Ingrese su rango de edad preferido en el siguiente formato: 16-21"
+    },
+    "sex_settings": {
+      "en": "Choose your sex",
+      "fr": "Choisissez votre sexe",
+      "ru": "Выберите свой пол",
+      "es": "Elige tu sexo"
+    },
+    "sexes_settings": {
+      "en": "Preferred sexes?",
+      "fr": "Sexes préférés ?",
+      "ru": "Предпочитаемые полы?",
+      "es": "¿Sexos preferidos?"
+    }
+  },
+  "keyboards": {
+    "main_keyboard": {
+      "joining": {
+        "en": "👋 Start The Conversation",
+        "fr": "👋 Commencer la conversation",
+        "ru": "👋 Начать разговор",
+        "es": "👋 Comenzar la conversación"
+      },
+      "settings": {
+        "en": "🛠️ Manage Settings",
+        "fr": "🛠️ Gérer les Paramètres",
+        "ru": "🛠️ Управление настройками",
+        "es": "🛠️ Administrar la Configuración"
+      },
+      "about_page": {
+        "en": "📖 About the bot",
+        "fr": "📖 À propos du bot",
+        "ru": "📖 О боте",
+        "es": "📖 Sobre el bot"
+      }
+    },
+    "sex_keyboard": {
+      "male": {
+        "en": "Male ♂️",
+        "fr": "Homme ♂️",
+        "ru": "Мужской ♂️",
+        "es": "Masculino ♂️"
+      },
+      "female": {
+        "en": "Female ♀️",
+        "fr": "Femelle ♀️",
+        "ru": "Женский ♀️",
+        "es": "Femenino ♀️"
+      },
+      "both": {
+        "en": "Both ⚤",
+        "fr": "Les Deux ⚤",
+        "ru": "Оба ⚤",
+        "es": "Ambos ⚤"
+      }
+    },
+    "cancel_keyboard": {
+      "en": "🚫 Cancel",
+      "fr": "🚫 Annuler",
+      "ru": "🚫 Отмена",
+      "es": "🚫 Cancelar"
+    }
   }
 }

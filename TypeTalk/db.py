@@ -28,8 +28,11 @@ class BotDB:
     #     num_filled_cols = len([v for v in user_params[0] if v is not None])
     #     return bool(user_params) and num_filled_cols == len(self.cursor.description) - 1
 
-    def check_all_columns_filled(self, chat_id):
+    def check_all_except_some_columns_filled(self, chat_id):
         cursor = self.cursor
+
+        # Columns to exclude from the check
+        columns_to_exclude = ['region_lat', 'region_lon']
 
         # Execute the SELECT query with the condition
         query = f"SELECT * FROM users WHERE chat_id = {chat_id}"
@@ -38,8 +41,8 @@ class BotDB:
         # Fetch the first row matching the condition
         row = cursor.fetchone()
 
-        # Check if the row exists and all columns are filled
-        return bool(row) and all(value is not None for value in row)
+        # Check if the row exists and all non-excluded columns are filled
+        return bool(row) and all(value is not None for idx, value in enumerate(row) if idx not in columns_to_exclude)
 
     def is_chat_id_exists(self, chat_id):
         select_query = "SELECT 1 FROM users WHERE chat_id = ?"

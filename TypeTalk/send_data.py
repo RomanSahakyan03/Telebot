@@ -79,7 +79,7 @@ def send_photo(receiver, update):
     else:
         data = {
             "chat_id": chat_id,
-            "text": texts["not kenough rating"][lang]  # "your rating now is lower than 2, grow it up to be allowed to send this message type" 
+            "text": texts["exceptions"]["not_kenough_rating"][lang]
         }
         send_request(data, "sendMessage")
 
@@ -136,8 +136,7 @@ def send_video(receiver, update):
     else:
         data = {
             "chat_id": chat_id,
-            # "text": #"your rating now is lower than 2, grow it up to be allowed to send this message type", 
-            "text" : texts["not kenough rating"][lang]
+            "text" : texts["exceptions"]["not_kenough_rating"][lang]
         }
         send_request(data, "sendMessage")
 
@@ -197,8 +196,7 @@ def send_video_note(receiver, update):
     else:
         data = {
             "chat_id": chat_id,
-            # "text": , # texts["not kenough rating"]
-            "text": texts["not kenough rating"][lang]
+            "text": texts["exceptions"]["not_kenough_rating"][lang]
         }
         send_request(data, "sendMessage")
 
