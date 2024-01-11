@@ -1,30 +1,11 @@
-import os
-import json
 import copy
-from db import BotDB
-from config import create_redis_client
-from utils import send_request, rate_keyboard, settings_status_bar, del_pair, system_send_message, from_coords_to_name, sexes, main_keyboard,lang_keyboard, mbti_types, cancel_keyboard
+from utils import cache, send_request, rate_keyboard, settings_status_bar, del_pair, system_send_message, from_coords_to_name, sexes, main_keyboard,lang_keyboard, mbti_types, cancel_keyboard
+from load_json import texts
 
-# Get the absolute path of the current directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the absolute texts path
-db_path = os.path.join(current_dir, 'userdata.db')
-
-db = BotDB(db_path)
-cache = create_redis_client()
-
-# Construct the absolute texts path
-texts_path = os.path.join(current_dir, 'typetalk_texts.json')
-
-with open(texts_path, 'r', encoding="UTF-8") as f:
-    texts = json.load(f)
-
-
-def join(chat_id):
-    params = db.select_parameter("*", f"chat_id = {chat_id}")
+async def join(session, chat_id, db):
+    params = await db.select_parameter("*", f"chat_id = {chat_id}")
     lang = params["language"]
-    if db.check_all_except_some_columns_filled(chat_id):
+    if await db.check_all_except_some_columns_filled(chat_id):
         lat, lon = params["region_lat"], params["region_lon"]
         name = from_coords_to_name(lat, lon, lang)
         preferred_ages = params["preferred_ages"]
@@ -41,22 +22,20 @@ def join(chat_id):
 
         text = f"{texts['join'][lang]}\n"
         text += f"{texts['settings']['preferred_ages'][lang]}{preferred_ages}\n"
-        if lon: # as an optional parameter
-            text += f"{texts['settings']['region'][lang]}{name}\n"
+        text += f"{texts['settings']['region'][lang]}{name}\n"
         text += f"{texts['settings']['TYPES'][lang]}{', '.join(types_list)}\n"
-        text += f"{texts['settings']['sexes'][lang]}{texts[sexes[sex_index]][lang]}"
+        text += f"{texts['settings']['sexes'][lang]}{texts['keyboards']['sex_keyboard'][sexes[sex_index]][lang]}"
         keyboard = cancel_keyboard(lang, "waiting")
 
         # Send the message
-        content = system_send_message(chat_id, text, keyboard, "waiting message")
+        await system_send_message(session, chat_id, text, keyboard, "join page")
         cache.sadd("waiting_pool", chat_id)
-        cache.hset("waiting_message", chat_id, content["message_id"])
     else:
         print(chat_id)
-        system_send_message(chat_id, texts["exceptions"]["do_not_join"][lang], None, "not joining error message")
+        await system_send_message(session, chat_id, texts["exceptions"]["do_not_join"][lang], None, "not joining error message")
 
-def settings(chat_id):
-    params = db.select_parameter("*", f"chat_id = {chat_id}")
+async def settings(session, chat_id, db):
+    params = await db.select_parameter("*", f"chat_id = {chat_id}")
     lang = params["language"]
     keyboard = {
     "inline_keyboard": [
@@ -73,11 +52,11 @@ def settings(chat_id):
     text = settings_status_bar(params)
                 
 
-    system_send_message(chat_id, text, keyboard, "Settings")
+    await system_send_message(session, chat_id, text, keyboard, "Settings")
 
-# Define a function to handle the /about command
-def about(chat_id):
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+# async define a function to handle the /about command
+async def about(session, chat_id, db):
+    lang = (await db.select_parameter("language", f"chat_id = {chat_id}"))["language"]
     data = {
         "chat_id" : chat_id,
         "photo" : "https://i.pinimg.com/474x/a1/2b/8e/a12b8ebbfa769903ac48ba27c6519e9d.jpg",
@@ -85,13 +64,13 @@ def about(chat_id):
         "reply_markup" : main_keyboard(lang)
     }
 
-    send_request(data, "sendPhoto", f"About menu opened for {chat_id}")
+    await send_request(session, data, "sendPhoto", f"About menu opened for {chat_id}")
 
-# Define a function to handle the /start command
-def start(chat_id):
+# async define a function to handle the /start command
+async def start(session, chat_id, db):
     print(chat_id)
-    if db.is_chat_id_exists(chat_id) is False:
-        db.insert_user(chat_id)
+    if await db.is_chat_id_exists(chat_id) is False:
+        await db.insert_user(chat_id)
         text = "Hey there! Welcome to TypeTalk, the anonymous chatbot based on MBTI personality types. " \
        "To get started, please select your preferred language from the options below:"
         data = {
@@ -100,41 +79,41 @@ def start(chat_id):
             "caption" : text,
             "reply_markup" : lang_keyboard
         }
-        send_request(data, "sendPhoto", f"Start menu opened for {chat_id}")
+        await send_request(session, data, "sendPhoto", f"Start menu opened for {chat_id}")
     else:
-        join(chat_id)
+        await join(session, chat_id, db)
 
-def stop(chat_id1):
+async def stop(session, chat_id1, db):
     if cache.hexists('pairs', chat_id1):
         chat_id2 = cache.hget('pairs', chat_id1).decode()
-        lang1 = db.select_parameter("language", f"chat_id = {chat_id1}")["language"]
-        lang2 = db.select_parameter("language", f"chat_id = {chat_id2}")["language"]
+        lang1 = (await db.select_parameter("language", f"chat_id = {chat_id1}"))["language"]
+        lang2 = (await db.select_parameter("language", f"chat_id = {chat_id2}"))["language"]
         
-        system_send_message(chat_id1, texts["ended conversation"][lang1], main_keyboard(lang1))
-        system_send_message(chat_id2, texts["ended conversation"][lang2], main_keyboard(lang2))
+        await system_send_message(session, chat_id1, texts["ended conversation"][lang1], main_keyboard(lang1))
+        await system_send_message(session, chat_id2, texts["ended conversation"][lang2], main_keyboard(lang2))
 
         rate_keyboard_copy = copy.deepcopy(rate_keyboard)
 
         rate_keyboard_copy["inline_keyboard"][0][0]["callback_data"] = f"like_{chat_id2}"
         rate_keyboard_copy["inline_keyboard"][0][1]["callback_data"] = f"dislike_{chat_id2}"
-        system_send_message(chat_id1, texts["rating"]["rate_op"][lang1], rate_keyboard_copy)
+        await system_send_message(session, chat_id1, texts["rating"]["rate_op"][lang1], rate_keyboard_copy)
 
         rate_keyboard_copy["inline_keyboard"][0][0]["callback_data"] = f"like_{chat_id1}"
         rate_keyboard_copy["inline_keyboard"][0][1]["callback_data"] = f"dislike_{chat_id1}"
-        system_send_message(chat_id2, texts["rating"]["rate_op"][lang2], rate_keyboard_copy)
+        await system_send_message(session, chat_id2, texts["rating"]["rate_op"][lang2], rate_keyboard_copy)
 
         del_pair(chat_id1)
 
-def next(chat_id):
-    stop(chat_id)
-    join(chat_id)
+async def next(session, chat_id1, db):
+    await stop(session, chat_id1, db)
+    await join(session, chat_id1, db)
 
-def shareprofile(chat_id, username):
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+async def shareprofile(session, chat_id, username, db):
+    lang = (await db.select_parameter("language", f"chat_id = {chat_id}"))["language"]
     if cache.hexists('pairs', chat_id):
         if username:
             receiver = cache.hget('pairs', chat_id).decode()
             text = "Here is the @" + username + '.'
-            system_send_message(receiver, text, None,'Shareprofile message')
+            await system_send_message(session, receiver, text, None,'Shareprofile message')
         else:
-            system_send_message(chat_id, texts["exceptions"]["no_username"][lang], None, "NoShareprofile message")
+            await system_send_message(session, chat_id, texts["exceptions"]["no_username"][lang], None, "NoShareprofile message")

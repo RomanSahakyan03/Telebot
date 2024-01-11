@@ -1,39 +1,34 @@
-import requests
-import os
-from config import create_redis_client
+from utils import EDIT_MESSAGE_URL, EDIT_MEDIA_URL, cache
 
-cache = create_redis_client()
-telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
-API_LINK = f"https://api.telegram.org/bot{telegram_token}"
-EDIT_MESSAGE_URL = f"{API_LINK}/editMessageText"
-EDIT_CAPTION_URL = f"{API_LINK}/editMessageCaption"
-EDIT_MEDIA_URL = f"{API_LINK}/editMessageMedia"
-
-
-def edit_message(update):
+async def edit_message(session, update):
     message_id = update["edited_message"]["message_id"]
     receiver = cache.hget('pairs', update["edited_message"]["from"]["id"]).decode()
+    message_key = cache.hget(str(receiver), message_id).decode()
+    
     data = {
         'chat_id' : receiver,
-        'message_id' : cache.hget(str(receiver), message_id).decode(),
+        'message_id' : message_key,
         'text' : update['edited_message']['text']
     }
-    response = requests.post(EDIT_MESSAGE_URL, json=data)
-    if response.ok:
-        print(f"edited message in {receiver} successfully")
-    else:
-        print(f"failed to edited message for {receiver}")
+    
+    async with session.post(EDIT_MESSAGE_URL, json=data) as response:
+        if response.status == 200:
+            print(f"Edited message in {receiver} successfully")
+        else:
+            print(f"Failed to edit message for {receiver}")
 
-def edit_media(update):
+async def edit_media(session, update):
     message_id = update["edited_message"]["message_id"]
     receiver = cache.hget('pairs', update["edited_message"]["from"]["id"]).decode()
+    message_key = cache.hget(str(receiver), message_id).decode()
+    
     data = {
-        'chat_id' : receiver,
-        'message_id' : cache.hget(str(receiver), message_id).decode(),
-        'media' : {}
+        'chat_id': receiver,
+        'message_id': message_key,
+        'media': {}
     }
+    
     if 'photo' in update['edited_message']:
-        print('in photo')
         data['media']['type'] = 'photo'
         data['media']['media'] = update['edited_message']['photo'][-1]['file_id']
     elif 'video' in update['edited_message']:
@@ -50,12 +45,10 @@ def edit_media(update):
         data['media']['media'] = update['edited_message']['voice']['file_id']
 
     if 'caption' in update['edited_message']:
-        print('in caption')
         data['media']['caption'] = update['edited_message']['caption']
-    print(data['media'])
-    print(data['message_id'])
-    response = requests.post(EDIT_MEDIA_URL, json=data)
-    if response.ok:
-            print(f"edited media in {receiver} successfully")
-    else:
-            print(f"failed to edited media for {receiver}")
+    
+    async with session.post(EDIT_MEDIA_URL, json=data) as response:
+        if response.status == 200:
+            print(f"Edited media in {receiver} successfully")
+        else:
+            print(f"Failed to edit media for {receiver}")

@@ -1,27 +1,6 @@
-import requests
-import os
-import json
-from config import create_redis_client
-from db import BotDB
-from utils import send_request
+from utils import send_request, cache
+from load_json import texts
 
-# Get the absolute path of the current directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the absolute texts path
-db_path = os.path.join(current_dir, 'userdata.db')
-
-db = BotDB(db_path)
-cache = create_redis_client()
-
-# Construct the absolute texts path
-texts_path = os.path.join(current_dir, 'typetalk_texts.json')
-
-with open(texts_path, 'r', encoding="UTF-8") as f:
-    texts = json.load(f)
-
-
-telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
 SEND_MESSAGE = "sendMessage"
 SEND_PHOTO = "sendPhoto"
 SEND_AUDIO = "sendAudio"
@@ -36,12 +15,12 @@ SEND_POLL = "sendPoll"
 def cache_message_ids(receiver, update, response_data):
     chat_id = update['message']['from']['id']
     message_id1 = update['message']['message_id']
-    message_id2 = response_data['message_id']
+    message_id2 = response_data['result']['message_id']
     cache.hset(receiver, message_id1, message_id2)
     cache.hset(chat_id, message_id2, message_id1)
 
 
-def send_message(receiver, update):
+async def send_message(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     text = update['message']['text']
     data = {
@@ -53,12 +32,12 @@ def send_message(receiver, update):
         if cache.hexists(receiver, message_id):
             data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
         
-    message = send_request(data, SEND_MESSAGE, f"message sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_MESSAGE, f"message sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)
 
-def send_photo(receiver, update): 
+async def send_photo(session, receiver, update, db): 
     chat_id = update['message']['from']['id']
-    info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
+    info = await db.select_parameter("rate, language", f"chat_id = {chat_id}")
     sender_rating = info["rate"]
     lang = info["language"]
     if sender_rating > 20:
@@ -74,16 +53,16 @@ def send_photo(receiver, update):
             if cache.hexists(receiver, message_id):
                 data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
         
-        message = send_request(data, SEND_PHOTO, f"Photo sent from {chat_id} to {receiver}")
+        message = await send_request(session, data, SEND_PHOTO, f"Photo sent from {chat_id} to {receiver}")
         cache_message_ids(receiver, update, message)
     else:
         data = {
             "chat_id": chat_id,
             "text": texts["exceptions"]["not_kenough_rating"][lang]
         }
-        send_request(data, "sendMessage")
+        await send_request(session, data, "sendMessage")
 
-def send_audio(receiver, update):
+async def send_audio(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
@@ -95,10 +74,10 @@ def send_audio(receiver, update):
         if cache.hexists(receiver, message_id):
             data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
     
-    message = send_request(data, SEND_AUDIO, f"Audio sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_AUDIO, f"Audio sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)
 
-def send_document(receiver, update):
+async def send_document(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
@@ -110,12 +89,12 @@ def send_document(receiver, update):
         message_id = update["message"]["reply_to_message"]["message_id"]
         if cache.hexists(receiver, message_id):
             data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
-    message = send_request(data, SEND_DOCUMENT, f"Document sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_DOCUMENT, f"Document sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)
 
-def send_video(receiver, update):
+async def send_video(session, receiver, update, db):
     chat_id = update['message']['from']['id']
-    info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
+    info = await db.select_parameter("rate, language", f"chat_id = {chat_id}")
     sender_rating = info["rate"]
     lang = info["language"]
     if sender_rating > 20:
@@ -131,17 +110,16 @@ def send_video(receiver, update):
             if cache.hexists(receiver, message_id):
                 data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-        message = send_request(data, SEND_VIDEO, f"Video sent from {chat_id} to {receiver}")
+        message = await send_request(session, data, SEND_VIDEO, f"Video sent from {chat_id} to {receiver}")
         cache_message_ids(receiver, update, message)
     else:
         data = {
             "chat_id": chat_id,
             "text" : texts["exceptions"]["not_kenough_rating"][lang]
         }
-        send_request(data, "sendMessage")
+        await send_request(session, data, "sendMessage")
 
-
-def send_animation(receiver, update):
+async def send_animation(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     animation = update["message"]["animation"]["file_id"]
     data = {
@@ -155,10 +133,10 @@ def send_animation(receiver, update):
         if cache.hexists(receiver, message_id):
             data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-    message = send_request(data, SEND_ANIMATION, f"Animation sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_ANIMATION, f"Animation sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)
 
-def send_location(receiver, update):
+async def send_location(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     latitude = update['message']['location']['latitude']
     longitude = update['message']['location']['longitude']
@@ -172,12 +150,12 @@ def send_location(receiver, update):
         if cache.hexists(receiver, message_id):
             data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-    message = send_request(data, SEND_LOCATION, f"Location sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_LOCATION, f"Location sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)
     
-def send_video_note(receiver, update):
+async def send_video_note(session, receiver, update, db):
     chat_id = update['message']['from']['id']
-    info = db.select_parameter("rate, language", f"chat_id = {chat_id}")
+    info = await db.select_parameter("rate, language", f"chat_id = {chat_id}")
     sender_rating = info["rate"]
     lang = info["language"]
     if sender_rating > 20:
@@ -191,16 +169,16 @@ def send_video_note(receiver, update):
             if cache.hexists(receiver, message_id):
                 data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
 
-        message = send_request(data, SEND_VIDEONOTE, f"Video Note sent from {chat_id} to {receiver}")
+        message = await send_request(session, data, SEND_VIDEONOTE, f"Video Note sent from {chat_id} to {receiver}")
         cache_message_ids(receiver, update, message)
     else:
         data = {
             "chat_id": chat_id,
             "text": texts["exceptions"]["not_kenough_rating"][lang]
         }
-        send_request(data, "sendMessage")
+        await send_request(session, data, "sendMessage")
 
-def send_sticker(receiver, update):
+async def send_sticker(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
@@ -211,10 +189,10 @@ def send_sticker(receiver, update):
         if cache.hexists(receiver, message_id):
             data["reply_to_message_id"] = cache.hget(receiver, message_id).decode()
             
-    message = send_request(data, SEND_STICKER, f"Sticker sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_STICKER, f"Sticker sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)
 
-def send_poll(receiver, update):
+async def send_poll(session, receiver, update, db):
     chat_id = update['message']['from']['id']
     data = {
         "chat_id" : receiver,
@@ -224,5 +202,5 @@ def send_poll(receiver, update):
         "allows_multiple_answers" : update["message"]["poll"]["allows_multiple_answers"],
     }
 
-    message = send_request(data, SEND_POLL, f"Poll sent from {chat_id} to {receiver}")
+    message = await send_request(session, data, SEND_POLL, f"Poll sent from {chat_id} to {receiver}")
     cache_message_ids(receiver, update, message)

@@ -1,21 +1,25 @@
 import math
 import json
-import requests
 import os
 from config import create_redis_client
 from geopy import Nominatim
+from load_json import texts
+import asyncio
 
+telegram_token = os.environ.get('TELEGRAM_API_TOKEN')
+API_LINK = f"https://api.telegram.org/bot{telegram_token}"
+GET_UPDATES_URL = f"{API_LINK}/getUpdates"
+EDIT_MESSAGE_URL = f"{API_LINK}/editMessageText"
+EDIT_CAPTION_URL = f"{API_LINK}/editMessageCaption"
+EDIT_MEDIA_URL = f"{API_LINK}/editMessageMedia"
 SEND_MESSAGE = "sendMessage"
-cache = create_redis_client() 
+cache = create_redis_client()
 
 # Get the absolute path of the current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Construct the absolute file path
 file_path = os.path.join(current_dir, 'typetalk_texts.json')
-
-with open(file_path, 'r', encoding="UTF-8") as f:
-    texts = json.load(f)
 
 # cancel only "state" or "waiting"
 def cancel_keyboard(lang, option):
@@ -26,63 +30,63 @@ def cancel_keyboard(lang, option):
     ]}
     return keyboard
 
-def system_send_message(receiver, text,reply_markup = None, handler = None):
+async def system_send_message(session, receiver, text, reply_markup=None, handler=None):
     data = {
-            "chat_id": receiver,
-            "text": text
-        }
+        "chat_id": receiver,
+        "text": text
+    }
     if reply_markup:
         data["reply_markup"] = json.dumps(reply_markup)
 
     if handler is None:
         handler = f"{receiver} message sent"
 
-    content = send_request(data, SEND_MESSAGE, handler)
+    content = await send_request(session, data, SEND_MESSAGE, handler)
 
     return content
 
-def system_edit_message(receiver, message_id, text = None,reply_markup = None, handler = None):
+async def system_edit_message(session, receiver, message_id, text=None, reply_markup=None, handler=None):
     data = {
         "chat_id": receiver,
-        "message_id" : message_id,
+        "message_id": message_id,
     }
     if text:
         data["text"] = text
-        
+
     if reply_markup:
         data["reply_markup"] = json.dumps(reply_markup)
 
     if handler is None:
         handler = f"{receiver} message edited"
 
-    content = send_request(data, "editMessageText", handler)
+    content = await send_request(session, data, "editMessageText", handler)
 
     return content
 
-def system_edit_types_message(receiver, message_id, res, lang):
+async def system_edit_types_message(session, receiver, message_id, res, lang):
     keyboard = get_mbti_types_keyboard(res)
     data = {
-        "chat_id" : receiver,
-        "message_id" : message_id,
-        "text" : texts["configuration_menus"]["types_settings"][lang],
-        "reply_markup" : json.dumps(keyboard)
+        "chat_id": receiver,
+        "message_id": message_id,
+        "text": texts["configuration_menus"]["types_settings"][lang],
+        "reply_markup": json.dumps(keyboard)
     }
 
-    content = send_request(data, "editMessageText")
+    content = await send_request(session, data, "editMessageText")
 
     return content
 
-def system_delete_message(receiver, message_id):
+async def system_delete_message(session, receiver, message_id):
     data = {
-        "chat_id" : receiver,
-        "message_id" : message_id
+        "chat_id": receiver,
+        "message_id": message_id
     }
 
-    # Use a try-except block to catch any potential errors
     try:
-        content = send_request(data, "deleteMessage", f"Deleted message {message_id} from {receiver}")
+        content = await send_request(session, data, "deleteMessage", f"Deleted message {message_id} from {receiver}")
     except Exception as e:
         print(f"Error deleting message: {e}")
+        content = None
 
     return content
 
@@ -135,6 +139,7 @@ mbti_type_emoji = {
     "ESTP": "🚀",  # The Entrepreneur
     "ESFP": "🎉",  # The Entertainer
 }
+
 def haversine_distance(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(math.radians, [float(lat1), float(lon1), float(lat2), float(lon2)])
 
@@ -253,7 +258,6 @@ rate_keyboard = {
             ]
     }
 
-
 def make_pair(chat_id1, chat_id2):
     cache.hset('pairs', chat_id1, chat_id2)
     cache.hset('pairs', chat_id2, chat_id1)
@@ -265,7 +269,7 @@ def del_pair(chat_id1):
     cache.hdel('pairs', chat_id1)
     cache.hdel('pairs', chat_id2)
 
-def send_request(data: dict, method: str, handler = None):
+async def send_request(session, data: dict, method: str, handler=None):
     if handler:
         handler_success = f"Successfully: {handler}."
         handler_fail = f"Failed: {handler}."
@@ -273,14 +277,13 @@ def send_request(data: dict, method: str, handler = None):
         handler_success = f"{method.capitalize()} request successful."
         handler_fail = f"{method.capitalize()} request failed."
 
-    response = requests.post(f"{API_LINK}/{method}", json=data)
-    if response.status_code == 200:
-        print(handler_success)
-        return response.json()['result']
-    else:
-        print(handler_fail)
-        print(response.json())
+    async with session.post(f"{API_LINK}/{method}", json=data) as response:
+        if response.status == 200:
+            print(handler_success)
+            return await response.json()
+        else:
+            print(handler_fail)
+            print(await response.text())
     
-
 if __name__ ==  "__main__":
     pass

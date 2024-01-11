@@ -1,61 +1,45 @@
-import json
 import re
 import os
-import threading
-import time
-import requests
 from db import BotDB
 from edit_data import *
 from send_data import *
 from utils import *
-from config import create_redis_client
 from commands import *
 from calback_actions import *
 from matching_system import matching_system
-
-# Get the absolute path of the current directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the absolute texts path
-db_path = os.path.join(current_dir, 'userdata.db')
-
-db = BotDB(db_path)
-cache = create_redis_client()
-
-# Construct the absolute texts path
-texts_path = os.path.join(current_dir, 'typetalk_texts.json')
-
-with open(texts_path, 'r', encoding="UTF-8") as f:
-    texts = json.load(f)
-    
+import asyncio
+import aiohttp
+from load_json import texts
+   
+processed_offset = 0
 # Can be 'age_collect', 'age_interval', 'region_collect'
-def state_handler(update, state):
+async def state_handler(session, update, db, state):
     chat_id = update['message']['from']['id']
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    lang = (await db.select_parameter("language", f"chat_id = {chat_id}"))["language"]
     condition = f'chat_id = {chat_id}'
     if state == 'age_collect':
         if "message" not in update or "text" not in update["message"]:
-            system_send_message(chat_id, texts["exceptions"]["invalid_data"][lang], None, "age set error")
+            await system_send_message(session, chat_id, texts["exceptions"]["invalid_data"][lang], None, "age set error")
             return
         text = update['message']['text']
         pattern = r"^(\d+)$"
         match = re.match(pattern, text)
         if match and int(text) < 100:
             if int(text) < 12:
-                system_send_message(chat_id, texts["exceptions"]["not_enough_age"][lang], None, 'error setage message')
+                await system_send_message(session, chat_id, texts["exceptions"]["not_enough_age"][lang], None, 'error setage message')
             else:
                 cache.srem("age_collect", chat_id)
-                db.upsert_user_data({'age' : text}, condition)
-                system_delete_message(chat_id, update['message']['message_id'])
-                system_delete_message(chat_id, cache.hget("waiting_message", chat_id).decode())
+                await db.upsert_user_data({'age' : text}, condition)
+                await system_delete_message(session, chat_id, update['message']['message_id'])
+                await system_delete_message(session, chat_id, cache.hget("waiting_message", chat_id).decode())
                 cache.hdel("waiting_message", chat_id)
-                system_send_message(chat_id, texts["success"]["age_set"][lang], None, 'setage')
+                await system_send_message(session, chat_id, texts["success"]["age_set"][lang], None, 'setage')
         else:
-            system_send_message(chat_id, texts["exceptions"]["invalid_data"][lang], None, 'error setage message')
+            await system_send_message(session, chat_id, texts["exceptions"]["invalid_data"][lang], None, 'error setage message')
             return
     elif state == 'age_interval':
         if "message" not in update or "text" not in update["message"]:
-            system_send_message(chat_id, texts["exceptions"]["invalid_data"][lang], None, "age set error")
+            await system_send_message(session, chat_id, texts["exceptions"]["invalid_data"][lang], None, "age set error")
             return
         text = update['message']['text']
         pattern = r"^(\d+)-(\d+)$"
@@ -66,32 +50,32 @@ def state_handler(update, state):
             if age1 > age2:
                 age1, age2 = age2, age1
             if age1 <= 13:
-                system_send_message(chat_id, texts["exceptions"]["low_age_alert"][lang], None, "Pedophil error")
+                await system_send_message(session, chat_id, texts["exceptions"]["low_age_alert"][lang], None, "Pedophil error")
                 return
-            db.upsert_user_data({'preferred_ages' : text}, condition)
+            await db.upsert_user_data({'preferred_ages' : text}, condition)
             cache.srem("age_interval", chat_id)
-            system_delete_message(chat_id, update['message']['message_id'])
-            system_delete_message(chat_id, cache.hget("waiting_message", chat_id).decode())
+            await system_delete_message(session, chat_id, update['message']['message_id'])
+            await system_delete_message(session, chat_id, cache.hget("waiting_message", chat_id).decode())
             cache.hdel("waiting_message", chat_id)
-            system_send_message(chat_id, texts["success"]["age_set"][lang], None, 'setage interval')
+            await system_send_message(session, chat_id, texts["success"]["age_set"][lang], None, 'setage interval')
         else:
-            system_send_message(chat_id, texts["exceptions"]["invalid_data"][lang], None, "age set error")
+            await system_send_message(session, chat_id, texts["exceptions"]["invalid_data"][lang], None, "age set error")
             return
     elif state == 'region_collect':
         if "message" not in update or "location" not in update["message"]:
-            system_send_message(chat_id, texts["exceptions"]["invalid_data"][lang], None, "location data error")
+            await system_send_message(session, chat_id, texts["exceptions"]["invalid_data"][lang], None, "location data error")
             return
         latitude = update['message']['location']['latitude']
         longitude = update['message']['location']['longitude']
-        db.upsert_user_data({'region_lat' : latitude}, condition)
-        db.upsert_user_data({'region_lon' : longitude}, condition)
-        system_delete_message(chat_id, update['message']['message_id'])
-        system_delete_message(chat_id, cache.hget("waiting_message", chat_id).decode())
+        await db.upsert_user_data({'region_lat' : latitude}, condition)
+        await db.upsert_user_data({'region_lon' : longitude}, condition)
+        await system_delete_message(session, chat_id, update['message']['message_id'])
+        await system_delete_message(session, chat_id, cache.hget("waiting_message", chat_id).decode())
         cache.hdel("waiting_message", chat_id)
-        system_send_message(chat_id, texts["success"]["location_set"][lang], None, 'coords')
+        await system_send_message(session, chat_id, texts["success"]["location_set"][lang], None, 'coords')
 
     cache.hdel('state', chat_id)
-    settings(chat_id)
+    await settings(session, chat_id, db)
 
 callback_actions = {
     "language": lang_setting,
@@ -121,22 +105,22 @@ action_patterns = {
     "es": handle_language,
 }
 
-def callback_handler(update):
+async def callback_handler(session, update, db):
     callback_data = update['callback_query']['data']
     chat_id = update['callback_query']['from']['id']
     message_id = update['callback_query']['message']['message_id']
-    lang = db.select_parameter("language", f"chat_id = {chat_id}")["language"]
+    lang = (await db.select_parameter("language", f"chat_id = {chat_id}"))["language"]
     if callback_data in callback_actions:
-        callback_actions[callback_data](chat_id, message_id, lang)
+        await callback_actions[callback_data](session, chat_id, message_id, lang, db)
         return
     for pattern, action in action_patterns.items():
         if callback_data.endswith(pattern):
-            action(chat_id, message_id, lang, callback_data)
+            await action(session, chat_id, message_id, lang, callback_data, db)
             return
     if re.match(r'like_(\d+)', callback_data):
-        like(chat_id, message_id, lang, callback_data)
+        await like(session, chat_id, message_id, lang, callback_data, db)
     elif re.match(r'dislike_(\d+)', callback_data):
-        dislike(chat_id, message_id, lang, callback_data)
+        await dislike(session, chat_id, message_id, lang, callback_data, db)
     else:
         handle_unsupported_callback(update)
 
@@ -175,55 +159,73 @@ COMMANDS = {
     '/about': about
 }
 
-def update_handler(update):
+async def update_handler(session, update, db):
     if 'message' in update:
         chat_id = update['message']['from']['id']
         if cache.sismember("waiting_pool", chat_id):
             return
         if cache.hexists('state', chat_id):
-                state_handler(update, cache.hget('state', chat_id).decode())
+                await state_handler(session, update, db, cache.hget('state', chat_id).decode())
                 return
         if 'text' in update['message']:
             text = update['message']['text']
             if text == '/shareprofile':
                 username = update['message']['from']['username'] if 'username' in update['message']['from'] else None
-                shareprofile(chat_id, username)
+                await shareprofile(session, chat_id, username, db)
                 return
             if text in COMMANDS:
-                COMMANDS[text](chat_id)
+                await COMMANDS[text](session, chat_id, db)
                 return
         for keyword, handler in message_handlers.items():
             if keyword in update['message'] and cache.hexists('pairs', chat_id):
                 pair = cache.hget('pairs', chat_id).decode()
                 print(f"sending {keyword} from {chat_id} to {pair}.")
-                handler(pair, update)
+                await handler(session, pair, update, db)
     elif 'edited_message' in update:
         if 'text' in update['edited_message']:
-            edit_message(update)
+            await edit_message(session, update)
         else:
-            edit_media(update)
+            await edit_media(session, update)
     elif 'callback_query' in update and 'data' in update['callback_query']:
-        callback_handler(update)
+        await callback_handler(session, update, db)
 
-def main():
+async def get_updates(session, db):
     proccessed_offset = 0
     get_updates_url = f"{API_LINK}/getUpdates"
+    
     while True:
         try:
-            response = requests.get(get_updates_url, params={'offset': proccessed_offset})
-            if response.ok:
-                updates = response.json()['result']
-                for update in updates:
-                    update_handler(update)
-                    proccessed_offset = max(proccessed_offset, update['update_id'] + 1)
-            time.sleep(0.75)
+            async with session.get(get_updates_url, params={'offset': proccessed_offset}) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    updates = data['result']
+                    for update in updates:
+                        await update_handler(session, update, db)
+                        proccessed_offset = max(proccessed_offset, update['update_id'] + 1)
+            await asyncio.sleep(0.75)
         except Exception as e:
             print(f'Error occurred: {e}')
-            time.sleep(5)
+            await asyncio.sleep(5)
 
-if __name__ ==  "__main__":
-    # matching_thread = threading.Thread(target=matching_system)
-    # matching_thread.start()
-    main()
-    # matching_thread.join()
-    db.close()
+async def main():
+    # Get the absolute path of the current directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Construct the absolute texts path
+    db_path = os.path.join(current_dir, 'userdata.db')
+
+    db = BotDB(db_path)
+    await db.connect()
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            update_task = asyncio.create_task(get_updates(session, db))
+            matching_task = asyncio.create_task(matching_system(session, db))
+            await asyncio.gather(update_task, matching_task)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            await db.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
