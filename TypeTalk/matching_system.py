@@ -11,9 +11,10 @@ async def matching_system(session, db):
         chat_id1, chat_id2 = cache.srandmember("waiting_pool", 2)
         chat_id1 = int(chat_id1)
         chat_id2 = int(chat_id2)
-        params1 = db.select_parameter("*", f"chat_id = {chat_id1}")
-        params2 = db.select_parameter("*", f"chat_id = {chat_id2}")
-
+        params1 = await db.select_parameter("*", f"chat_id = {chat_id1}")
+        params2 = await db.select_parameter("*", f"chat_id = {chat_id2}")
+        # print(await params1)
+        # print(await params2)
         first_type = params1["TYPE"]
         first_types = params1["TYPES"]
         second_type = params2["TYPE"]
@@ -54,6 +55,8 @@ async def matching_system(session, db):
         second_lat = params2["region_lat"]
         second_lon = params2["region_lon"]
 
+        lang1 = params1["language"]
+        lang2 = params2["language"]
 
         if bool(first_lat) ^ bool(second_lat):
             return
@@ -78,22 +81,21 @@ async def matching_system(session, db):
         if sexes2 != 2 and ((sex2 ^ 1) != sexes1):
             return
 
-        lang1 = params1["language"]
-        lang2 = params2["language"]
+
 
         text1 = f"{texts['matching']['partner found'][lang1]}\n"
         text1 += f"{texts['matching']['age'][lang1]}{second_age}\n"
         if first_lat:
             text1 += f"{texts['matching']['region'][lang1]}{from_coords_to_name(second_lat, second_lon, lang1)}\n"
         text1 += f"{texts['matching']['type'][lang1]}{mbti_types[second_type]}\n"
-        text1 += f"{texts['matching']['sex'][lang1]}{texts[sexes[sex2]][lang1]}"
+        # text1 += f"{texts['matching']['sex'][lang1]}{texts[sexes[sex2]][lang1]}"
 
         text2 = f"{texts['matching']['partner found'][lang2]}\n"
         text2 += f"{texts['matching']['age'][lang2]}{first_age}\n"
         if second_lat:
                 text2 += f"{texts['matching']['region'][lang2]}{from_coords_to_name(first_lat, first_lon, lang2)}\n"
         text2 += f"{texts['matching']['type'][lang2]}{mbti_types[first_type]}\n"
-        text2 += f"{texts['matching']['sex'][lang2]}{texts[sexes[sex1]][lang2]}"
+        # text2 += f"{texts['matching']['sex'][lang2]}{texts[sexes[sex1]][lang2]}"
 
         await system_delete_message(session, chat_id1, int(cache.hget("waiting_message", chat_id1)))
         await system_delete_message(session, chat_id2, int(cache.hget("waiting_message", chat_id2)))
